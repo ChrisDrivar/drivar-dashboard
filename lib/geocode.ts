@@ -57,7 +57,9 @@ async function queryNominatim(parts: string[], contactEmail?: string) {
 }
 
 export async function geocodeAddress({ street, city, region, country }: GeocodeInput): Promise<GeocodeResult | null> {
-  const baseParts = [city, region, country].filter(Boolean);
+  const baseParts = [city, region, country].filter(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0
+  );
   if (baseParts.length < 2) {
     return null;
   }
