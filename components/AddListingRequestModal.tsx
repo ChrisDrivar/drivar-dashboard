@@ -39,6 +39,8 @@ type ListingRequestForm = {
   city: string;
   country: string;
   landlord: string;
+  street: string;
+  postalCode: string;
   comment: string;
   vehicles: VehicleForm[];
 };
@@ -61,6 +63,8 @@ const INITIAL_FORM: ListingRequestForm = {
   city: '',
   country: '',
   landlord: '',
+  street: '',
+  postalCode: '',
   comment: '',
   vehicles: [createVehicle()],
 };
@@ -184,6 +188,8 @@ export function AddListingRequestModal({
             city: form.city,
             country: form.country,
             landlord: form.landlord.trim(),
+            street: form.street.trim(),
+            postalCode: form.postalCode.trim(),
             comment: form.comment.trim(),
           },
           vehicles,
@@ -251,7 +257,7 @@ export function AddListingRequestModal({
               </Box>
             </FormControl>
             <FormControl>
-              <FormLabel>Region / Bundesland</FormLabel>
+              <FormLabel>Bundesland</FormLabel>
               <Input
                 value={form.region}
                 onChange={setField('region')}
@@ -280,6 +286,25 @@ export function AddListingRequestModal({
               ))}
             </Box>
           </FormControl>
+
+          <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <FormControl>
+              <FormLabel>Straße / Hausnummer</FormLabel>
+              <Input
+                value={form.street}
+                onChange={setField('street')}
+                placeholder="z. B. Musterstraße 1"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>PLZ</FormLabel>
+              <Input
+                value={form.postalCode}
+                onChange={setField('postalCode')}
+                placeholder="z. B. 82031"
+              />
+            </FormControl>
+          </Flex>
 
           <Box>
             <Flex align="center" justify="space-between" mb={3}>

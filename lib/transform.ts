@@ -313,6 +313,8 @@ export function mapListingRequests(rows: string[][]): ListingRequestEntry[] {
     .filter((entry) => entry.kanal || entry.region || entry.fahrzeugtyp);
 }
 
+const CLOSED_LEAD_STATUSES = new Set(['Vertrag unterschrieben', 'Abgelehnt']);
+
 export function mapPendingLeads(rows: string[][]): PendingLeadEntry[] {
   const [header, ...entries] = rows;
   if (!header) return [];
@@ -328,10 +330,14 @@ export function mapPendingLeads(rows: string[][]): PendingLeadEntry[] {
     stadt: 7,
     land: 8,
     kommentar: 9,
+    street: 10,
+    postalCode: 11,
+    status: 12,
+    statusUpdatedAt: 13,
   };
 
   return entries
-    .map((row) => ({
+    .map((row, index) => ({
       datum: pick(row, findIndex, ['datum', 'date'], fallback.datum),
       kanal: pick(row, findIndex, ['kanal', 'channel', 'quelle'], fallback.kanal),
       region: pick(row, findIndex, ['region', 'bundesland'], fallback.region),
@@ -344,8 +350,29 @@ export function mapPendingLeads(rows: string[][]): PendingLeadEntry[] {
       stadt: pick(row, findIndex, ['stadt', 'city'], fallback.stadt),
       land: pick(row, findIndex, ['land', 'country'], fallback.land),
       kommentar: pick(row, findIndex, ['kommentar', 'notes', 'bemerkung'], fallback.kommentar),
+      street: pick(row, findIndex, ['strasse', 'street'], fallback.street),
+      postalCode: pick(row, findIndex, ['plz', 'postal_code', 'zip'], fallback.postalCode),
+      status: pick(row, findIndex, ['status'], fallback.status) || 'Angefragt',
+      statusUpdatedAt: pick(
+        row,
+        findIndex,
+        ['status_updated_at', 'status_geaendert', 'status_date'],
+        fallback.statusUpdatedAt
+      ),
+      sheetRowIndex: index + 2,
     }))
-    .filter((entry) => entry.vermieterName.trim().length > 0);
+    .filter((entry) => entry.vermieterName.trim().length > 0)
+    .filter((entry) => {
+      if (!CLOSED_LEAD_STATUSES.has(entry.status)) {
+        return true;
+      }
+
+      const referenceDate = entry.statusUpdatedAt || entry.datum;
+      if (!referenceDate) return true;
+      const parsed = parseISO(referenceDate);
+      if (Number.isNaN(parsed.getTime())) return true;
+      return differenceInCalendarDays(new Date(), parsed) <= 7;
+    });
 }
 
 type KpiOptions = {
@@ -421,15 +448,21 @@ export function buildKpis(
   const normalizedCity = city ? normaliseValue(city) : null;
 
   let radiusCenter: { latitude: number; longitude: number } | undefined;
-  if (radiusKm && normalizedCity && country) {
-    const candidate = inventory.find(
-      (item) => matches(item.land, country) && matches(item.stadt, city) && getItemCoordinates(item)
-    );
+  if (radiusKm && normalizedCity) {
+    const candidate = inventory.find((item) => {
+      if (!matches(item.stadt, city)) return false;
+      if (country && !matches(item.land, country)) return false;
+      return Boolean(getItemCoordinates(item));
+    });
+
     if (candidate) {
-      radiusCenter = getItemCoordinates(candidate);
+      radiusCenter = getItemCoordinates(candidate) ?? undefined;
     }
+
+    const fallbackCountry = country || candidate?.land || '';
+
     if (!radiusCenter) {
-      radiusCenter = resolveCityCoordinates(city!, country);
+      radiusCenter = resolveCityCoordinates(city!, fallbackCountry);
     }
   }
 

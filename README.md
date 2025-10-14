@@ -22,9 +22,9 @@ Performance Dashboard für Vermieter- und Fahrzeug-KPIs, gebaut mit Next.js 14, 
 3. **Google Sheet Struktur**
    - Tab `owners` (Vermieter-Stammdaten): `vermieter_id` (optional, kann ausgeblendet werden), `vermieter_name`, `land`, `telefon`, `email`, `domain`, `partner_since`, `status`.
    - Tab `inventory` (Fahrzeuge): `fahrzeug_id` (optional), `vermieter_id` oder `vermieter_name`, `land`, `region`, `stadt`, `fahrzeugtyp`, `listed_at`, `offboarded_at`, `status`, optional `fahrzeug_label`. Für die Kartenansicht können zusätzlich `latitude` und `longitude` gepflegt werden (falls leer, greift eine hinterlegte City-Liste für DE/AT/CH/UK/USA/UAE/AU).
-   - Tab `inquiries`: `datum`, `fahrzeug_id` (optional), `fahrzeugtyp`, `land`, `stadt`, `anfragen`, `mieten`.
-  - Tab `listing_requests`: `datum`, `kanal`, `region`, `vermieter_name`, optional `fahrzeug_label`, `manufacturer`, `fahrzeugtyp`, `stadt`, `land`, `kommentar`.
-   - Tab `missing_inventory`: `region`, `fahrzeugtyp`, `anzahl_fehlend`, `prio`, `kommentar`, optional `land`.
+  - Tab `inquiries`: `datum`, `fahrzeug_id` (optional), `fahrzeugtyp`, `land`, `stadt`, `anfragen`, `mieten`.
+  - Tab `listing_requests`: `datum`, `kanal`, `region`, `vermieter_name`, optional `fahrzeug_label`, `manufacturer`, `fahrzeugtyp`, `stadt`, `land`, `strasse`, `plz`, `status`, `status_updated_at`, `kommentar`.
+  - Tab `missing_inventory`: `region`, `fahrzeugtyp`, `anzahl_fehlend`, `prio`, `kommentar`, optional `land`.
 
 4. **Entwicklung starten**
    ```bash
@@ -45,6 +45,15 @@ Performance Dashboard für Vermieter- und Fahrzeug-KPIs, gebaut mit Next.js 14, 
 - Weitere KPIs ergänzen (z. B. Zuwachs/Verlust im Wochenvergleich).
 - Authentifizierung für sensible Dashboards.
 - Automatisierte Datenpflege via n8n-Flows.
+
+## Authentifizierung
+
+Das Dashboard ist per Basic Auth geschützt. Hinterlege die Variablen `BASIC_AUTH_USER` und `BASIC_AUTH_PASSWORD` sowohl lokal (`.env.local`) als auch in Vercel (Project → Settings → Environment Variables). Ohne diese Werte lässt die Middleware keine Requests durch.
+
+## Hinweise
+
+- Für Leaflet-Entwicklungsumgebungen einmalig `npm install --save-dev @types/leaflet` ausführen.
+- Leads, die den Status „Vertrag unterschrieben“ erhalten, erzeugen automatisch einen Vermieter-Eintrag; ab Status „Vertrag unterschrieben“ oder „Abgelehnt“ verschwinden Leads nach 7 Tagen automatisch aus der Liste.
 
 ## Deployment
 

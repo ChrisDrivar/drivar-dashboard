@@ -51,6 +51,23 @@ export async function appendRows(range: string, rows: Array<Array<string | numbe
   });
 }
 
+export async function updateRow(range: string, row: Array<string | number | null | undefined>) {
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  if (!spreadsheetId) {
+    throw new Error('GOOGLE_SHEET_ID ist nicht gesetzt');
+  }
+
+  const sheets = await getSheetsClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [row.map((value) => (value == null ? '' : value))],
+    },
+  });
+}
+
 export async function getSheetMatrix(sheetName: string, range?: string): Promise<string[][]> {
   const spreadsheetId = process.env.GOOGLE_SHEET_ID;
   if (!spreadsheetId) {

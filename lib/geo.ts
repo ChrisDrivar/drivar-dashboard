@@ -35,6 +35,7 @@ const cityCoordinates: Record<string, Coordinate> = {
   'de:heilbronn': { latitude: 49.142693, longitude: 9.210879 },
   'de:ludwigsburg': { latitude: 48.896435, longitude: 9.184904 },
   'de:anzing': { latitude: 48.15001, longitude: 11.85891 },
+  'de:anzig': { latitude: 48.15001, longitude: 11.85891 },
   'de:göttingen': { latitude: 51.54128, longitude: 9.9158 },
   'de:gottingen': { latitude: 51.54128, longitude: 9.9158 },
   'de:bad nenndorf': { latitude: 52.33771, longitude: 9.37581 },

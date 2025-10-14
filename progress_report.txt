@@ -5,11 +5,11 @@ Stand: 13. Oktober 2025
 
 1. Filter & Radiuslogik
 -----------------------
-- Alle Filter (Land, Region, Stadt, Typ, Hersteller, Radius) arbeiten kombinierbar.
+- Alle Filter (Land, Bundesland, Stadt, Typ, Hersteller, Radius) arbeiten kombinierbar.
 - Der bisherige Zeitraum-Filter wurde durch einen Radius (25–200 km) ersetzt.
 - Radius steht nur zur Verfügung, wenn eine Stadt gesetzt ist. Beim Wechsel von Land/Region/Stadt wird der Radius zurückgesetzt.
 - KPI-Berechnung nutzt einen Haversine-Check, um nur Fahrzeuge innerhalb des Radius zu berücksichtigen.
-- Städte- und Regionslisten werden auf das gewählte Land normalisiert; Werte werden `trim()`-bereinigt.
+- Städte- und Bundesland-Listen werden auf das gewählte Land normalisiert; Werte werden `trim()`-bereinigt.
 
 2. Leaflet-Karte
 ----------------
@@ -41,6 +41,12 @@ Stand: 13. Oktober 2025
 - Erweiterung des Partner-Dialogs (weitere Felder, mehrere Fahrzeuge, Uploads).
 - Fehlermeldungs-Logging & Monitoring (z. B. bei Geocoder-Fehlern oder Rate-Limits).
 - Optionale Filter (z. B. Fahrzeugstatus) oder andere KPIs.
+
+6. Leads & Pipeline
+-------------------
+- Lead-Dialog erfasst zusätzlich Straße & PLZ; Statuswechsel direkt in der Tabelle.
+- Status "Vertrag unterschrieben" legt automatisch einen Vermieter + Fahrzeuge an.
+- Leads mit Status "Vertrag unterschrieben" oder "Abgelehnt" werden nach 7 Tagen automatisch ausgeblendet.
 
 Setup-Reminder
 --------------

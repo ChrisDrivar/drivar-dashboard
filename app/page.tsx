@@ -12,6 +12,7 @@ import {
   Text,
   Button,
   useDisclosure,
+  useToast,
 } from '@chakra-ui/react';
 import {
   Bar,
@@ -33,6 +34,8 @@ import { AddMissingInventoryModal } from '@/components/AddMissingInventoryModal'
 import { MissingInventoryTable } from '@/components/MissingInventoryTable';
 import { AddListingRequestModal } from '@/components/AddListingRequestModal';
 import { PendingLeadsTable } from '@/components/PendingLeadsTable';
+import type { LeadStatus } from '@/lib/leadStatus';
+import type { PendingLeadEntry } from '@/types/kpis';
 import type { KpiFilters } from '@/hooks/useKpiFilters';
 import { useKpiFilters } from '@/hooks/useKpiFilters';
 import { useKpis } from '@/hooks/useKpis';
@@ -137,6 +140,8 @@ export default function DashboardPage() {
     onClose: onCloseLeadModal,
   } = useDisclosure();
   const [vehicleQuery, setVehicleQuery] = useState('');
+  const [leadUpdatingRow, setLeadUpdatingRow] = useState<number | null>(null);
+  const toast = useToast();
 
   const vehiclesByCity = useMemo(() => {
     if (!kpis?.inventory) return [];
@@ -186,6 +191,66 @@ export default function DashboardPage() {
     resetFilters();
     setVehicleQuery('');
   }, [resetFilters]);
+
+  const handleLeadStatusChange = useCallback(
+    async (lead: PendingLeadEntry, nextStatus: LeadStatus) => {
+      setLeadUpdatingRow(lead.sheetRowIndex);
+      try {
+        const response = await fetch('/api/listing-requests', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rowIndex: lead.sheetRowIndex,
+            status: nextStatus,
+            createPartner: nextStatus === 'Vertrag unterschrieben',
+            lead: {
+              date: lead.datum,
+              channel: lead.kanal,
+              region: lead.region,
+              city: lead.stadt,
+              country: lead.land,
+              landlord: lead.vermieterName,
+              street: lead.street,
+              postalCode: lead.postalCode,
+              comment: lead.kommentar,
+            },
+            vehicles: [
+              {
+                vehicleLabel: lead.fahrzeugLabel,
+                manufacturer: lead.manufacturer,
+                vehicleType: lead.fahrzeugtyp,
+                comment: lead.kommentar,
+              },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || 'Status konnte nicht aktualisiert werden.');
+        }
+
+        toast({
+          status: 'success',
+          title:
+            nextStatus === 'Vertrag unterschrieben'
+              ? 'Vermieter angelegt'
+              : 'Status aktualisiert',
+        });
+        await mutate();
+      } catch (error) {
+        console.error('[pending-leads-status]', error);
+        toast({
+          status: 'error',
+          title: 'Aktualisierung fehlgeschlagen',
+          description: (error as Error).message,
+        });
+      } finally {
+        setLeadUpdatingRow(null);
+      }
+    },
+    [mutate, toast]
+  );
 
   if (isError) {
     return (
@@ -314,7 +379,12 @@ export default function DashboardPage() {
 
         <MissingInventoryTable rows={missingInventoryList} isLoading={isLoading} />
 
-        <PendingLeadsTable rows={pendingLeadsList} isLoading={isLoading} />
+        <PendingLeadsTable
+          rows={pendingLeadsList}
+          isLoading={isLoading}
+          onStatusChange={handleLeadStatusChange}
+          updatingRow={leadUpdatingRow}
+        />
 
         <Skeleton isLoaded={!isLoading} borderRadius="3xl">
           <OnboardingTable rows={kpis?.onboarding ?? []} />

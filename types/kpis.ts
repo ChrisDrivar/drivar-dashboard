@@ -94,6 +94,11 @@ export type PendingLeadEntry = {
   stadt?: string;
   land?: string;
   kommentar?: string;
+  street?: string;
+  postalCode?: string;
+  status: string;
+  statusUpdatedAt?: string;
+  sheetRowIndex: number;
 };
 
 export type GeoLocationPoint = {

@@ -46,7 +46,7 @@ export function MissingInventoryTable({ rows, isLoading = false }: MissingInvent
               <Thead position="sticky" top={0} bg="rgba(17, 24, 39, 0.95)" zIndex={1}>
                 <Tr>
                   <Th>Stadt</Th>
-                  <Th>Region</Th>
+                  <Th>Bundesland</Th>
                   <Th>Land</Th>
                   <Th>Fahrzeugtyp</Th>
                   <Th isNumeric>Anzahl</Th>

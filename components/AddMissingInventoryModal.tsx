@@ -176,7 +176,7 @@ export function AddMissingInventoryModal({
               </Box>
             </FormControl>
             <FormControl>
-              <FormLabel>Region / Bundesland</FormLabel>
+              <FormLabel>Bundesland</FormLabel>
               <Input
                 value={form.region}
                 onChange={setField('region')}

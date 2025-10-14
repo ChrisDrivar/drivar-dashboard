@@ -1,9 +1,15 @@
 'use client';
 
 import {
+  Badge,
   Box,
+  Button,
   Flex,
   Heading,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
   Skeleton,
   Table,
   TableContainer,
@@ -13,9 +19,9 @@ import {
   Th,
   Thead,
   Tr,
-  Badge,
 } from '@chakra-ui/react';
 import type { PendingLeadEntry } from '@/types/kpis';
+import { LEAD_STATUS_COLORS, LEAD_STATUS_VALUES, type LeadStatus } from '@/lib/leadStatus';
 
 function formatDate(value?: string) {
   if (!value) return '–';
@@ -27,9 +33,22 @@ function formatDate(value?: string) {
 type PendingLeadsTableProps = {
   rows: PendingLeadEntry[];
   isLoading?: boolean;
+  onStatusChange?: (lead: PendingLeadEntry, status: LeadStatus) => void | Promise<void>;
+  updatingRow?: number | null;
 };
 
-export function PendingLeadsTable({ rows, isLoading = false }: PendingLeadsTableProps) {
+export function PendingLeadsTable({
+  rows,
+  isLoading = false,
+  onStatusChange,
+  updatingRow,
+}: PendingLeadsTableProps) {
+  const handleStatusClick = async (lead: PendingLeadEntry, status: LeadStatus) => {
+    if (!onStatusChange) return;
+    if (status === lead.status) return;
+    await onStatusChange(lead, status);
+  };
+
   return (
     <Skeleton isLoaded={!isLoading} borderRadius="3xl">
       <Box
@@ -59,9 +78,11 @@ export function PendingLeadsTable({ rows, isLoading = false }: PendingLeadsTable
                   <Th>Vermieter</Th>
                   <Th>Stadt</Th>
                   <Th>Land</Th>
+                  <Th>Bundesland</Th>
                   <Th>Fahrzeug</Th>
                   <Th>Typ</Th>
                   <Th>Kanal</Th>
+                  <Th>Status</Th>
                   <Th>Kommentar</Th>
                 </Tr>
               </Thead>
@@ -72,6 +93,7 @@ export function PendingLeadsTable({ rows, isLoading = false }: PendingLeadsTable
                     <Td>{row.vermieterName}</Td>
                     <Td>{row.stadt || '–'}</Td>
                     <Td>{row.land || '–'}</Td>
+                    <Td>{row.region || '–'}</Td>
                     <Td>
                       <Box>
                         <Text noOfLines={1}>{row.fahrzeugLabel || '–'}</Text>
@@ -84,6 +106,36 @@ export function PendingLeadsTable({ rows, isLoading = false }: PendingLeadsTable
                     </Td>
                     <Td>{row.fahrzeugtyp || '–'}</Td>
                     <Td>{row.kanal || '–'}</Td>
+                    <Td>
+                      {onStatusChange ? (
+                        <Menu>
+                          <MenuButton
+                            as={Button}
+                            size="sm"
+                            variant="outline"
+                            isDisabled={Boolean(updatingRow && updatingRow !== row.sheetRowIndex)}
+                            isLoading={updatingRow === row.sheetRowIndex}
+                            colorScheme={LEAD_STATUS_COLORS[(row.status as LeadStatus) ?? 'Angefragt'] ?? 'gray'}
+                          >
+                            {row.status}
+                          </MenuButton>
+                          <MenuList>
+                            {LEAD_STATUS_VALUES.map((status) => (
+                              <MenuItem
+                                key={status}
+                                onClick={() => handleStatusClick(row, status)}
+                              >
+                                {status}
+                              </MenuItem>
+                            ))}
+                          </MenuList>
+                        </Menu>
+                      ) : (
+                        <Badge colorScheme={LEAD_STATUS_COLORS[(row.status as LeadStatus) ?? 'Angefragt'] ?? 'gray'}>
+                          {row.status}
+                        </Badge>
+                      )}
+                    </Td>
                     <Td maxW="24rem">
                       <Text noOfLines={2}>{row.kommentar || '–'}</Text>
                     </Td>

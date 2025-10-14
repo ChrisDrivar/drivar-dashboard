@@ -91,10 +91,10 @@ export function FiltersBar({
       </Box>
       <Box flex="1">
         <Text fontSize="xs" textTransform="uppercase" color="gray.400" mb={1}>
-          Region
+          Bundesland
         </Text>
         <Select
-          placeholder="Alle Regionen"
+          placeholder="Alle Bundesländer"
           value={filters.region}
           onChange={(event) => setFilter('region', event.target.value)}
         >
