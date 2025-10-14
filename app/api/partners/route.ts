@@ -108,7 +108,15 @@ export async function POST(request: NextRequest) {
     const explicitAddress = (owner.address ?? '').trim();
     const address = explicitAddress || [street, postalCode, city].filter(Boolean).join(', ');
 
-    const preparedVehicles = vehiclesInput
+    type PreparedVehicle = {
+      label: string;
+      vehicleType: string;
+      manufacturer: string;
+      status: string;
+      notes: string;
+    };
+
+    const preparedVehicles: PreparedVehicle[] = vehiclesInput
       .map((vehicle: any) => ({
         label: (vehicle?.label ?? '').trim(),
         vehicleType: (vehicle?.vehicleType ?? '').trim(),
@@ -116,7 +124,7 @@ export async function POST(request: NextRequest) {
         status: (vehicle?.status ?? 'aktiv').trim() || 'aktiv',
         notes: (vehicle?.notes ?? '').trim(),
       }))
-      .filter((vehicle) => vehicle.label.length > 0);
+      .filter((vehicle: PreparedVehicle) => vehicle.label.length > 0);
 
     if (!ownerName || !country || !city || preparedVehicles.length === 0) {
       return NextResponse.json(
