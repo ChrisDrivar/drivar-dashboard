@@ -1,0 +1,50 @@
+DRIVAR Dashboard – Fortschrittsreport
+====================================
+
+Stand: 13. Oktober 2025
+
+1. Filter & Radiuslogik
+-----------------------
+- Alle Filter (Land, Region, Stadt, Typ, Hersteller, Radius) arbeiten kombinierbar.
+- Der bisherige Zeitraum-Filter wurde durch einen Radius (25–200 km) ersetzt.
+- Radius steht nur zur Verfügung, wenn eine Stadt gesetzt ist. Beim Wechsel von Land/Region/Stadt wird der Radius zurückgesetzt.
+- KPI-Berechnung nutzt einen Haversine-Check, um nur Fahrzeuge innerhalb des Radius zu berücksichtigen.
+- Städte- und Regionslisten werden auf das gewählte Land normalisiert; Werte werden `trim()`-bereinigt.
+
+2. Leaflet-Karte
+----------------
+- `react-leaflet` ersetzt `react-simple-maps`.
+- Scroll/Zoom funktionieren wie in Google Maps; Marker behalten eine fixe Größe.
+- Radius-Halos werden als echte 50 km (oder ausgewählter Radius) Kreise gezeichnet.
+- Halos erscheinen nur, wenn ein Radius aktiv ist.
+
+3. Geocoding & Google Sheets Integration
+----------------------------------------
+- Geocoding via Nominatim (OpenStreetMap) (`lib/geocode.ts`).
+- Google Sheets API via Service Account (`lib/googleSheets.ts`).
+- Service Account ist in `.env.local` hinterlegt (Email + Private Key) – Sheet muss mit diesem Konto geteilt sein.
+- Optional konfigurierbar: `GOOGLE_SHEET_INVENTORY_RANGE`, `GOOGLE_SHEET_OWNERS_RANGE`, Geocoder User-Agent & Kontakt E-Mail.
+- Inventar-Einträge werden nur noch angezeigt, wenn Koordinaten vorhanden sind (lat/lng Felder oder bekannte Städte in `lib/geo.ts`).
+
+4. CRUD-Flow "Vermieter hinzufügen"
+------------------------------------
+- Neue Modalkomponente `AddPartnerModal`: erfasst Vermieter- und Fahrzeugdaten.
+- Backend-Route `/api/partners`:
+  * Geokodiert Adresse (Land, Stadt, optional Straße).
+  * Schreibt neuen Fahrzeug-Eintrag ins `inventory`-Tab (inkl. Lat/Lng).
+  * Legt Vermieter im `owners`-Tab an, falls noch nicht vorhanden.
+- Nach erfolgreicher Speicherung wird SWR revalidiert; das Dashboard zeigt die neuen Daten sofort.
+
+5. Offene Punkte / Ideen
+------------------------
+- Altbestände ohne Koordinaten nachgeokodieren.
+- Erweiterung des Partner-Dialogs (weitere Felder, mehrere Fahrzeuge, Uploads).
+- Fehlermeldungs-Logging & Monitoring (z. B. bei Geocoder-Fehlern oder Rate-Limits).
+- Optionale Filter (z. B. Fahrzeugstatus) oder andere KPIs.
+
+Setup-Reminder
+--------------
+- `npm install` (neue Pakete: googleapis, react-leaflet, leaflet).
+- `.env.local`: GOOGLE_SHEET_ID, Service-Account-Creds, optional Range-Overrides.
+- Sheet muss mit dem Service-Account geteilt sein (Bearbeiter-Rechte).
+- `inventory`-Tab sollte Spalten `latitude` / `longitude` enthalten – neue Einträge füllen diese automatisch.
