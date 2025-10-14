@@ -56,7 +56,7 @@ export default function PartnerMapLeaflet({
   const coords = useMemo(() => {
     return locations
       .filter((item) => typeof item.latitude === 'number' && typeof item.longitude === 'number')
-      .map((item) => [item.latitude, item.longitude] as LatLngExpression);
+      .map((item) => [item.latitude, item.longitude] as [number, number]);
   }, [locations]);
 
   const bounds = useMemo(() => {
@@ -66,8 +66,8 @@ export default function PartnerMapLeaflet({
 
   const fallbackCenter = useMemo<LatLngExpression>(() => {
     if (coords.length) {
-      const [sumLat, sumLon] = coords.reduce(
-        (acc, [lat, lon]) => [acc[0] + lat, acc[1] + (lon as number)],
+      const [sumLat, sumLon] = coords.reduce<[number, number]>(
+        (acc, [lat, lon]) => [acc[0] + lat, acc[1] + lon],
         [0, 0]
       );
       return [sumLat / coords.length, sumLon / coords.length] as LatLngExpression;
