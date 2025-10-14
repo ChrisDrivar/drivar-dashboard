@@ -64,7 +64,7 @@ export async function geocodeAddress({ street, city, region, country }: GeocodeI
 
   const contactEmail = process.env.GEOCODER_CONTACT_EMAIL;
 
-  const streetParts = street ? [street, ...baseParts] : baseParts;
+  const streetParts: string[] = street ? [street, ...baseParts] : baseParts;
 
   const fullMatch = await queryNominatim(streetParts, contactEmail).catch((error) => {
     console.error('[geocode] Fehler bei Street-Query', error);
