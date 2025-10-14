@@ -676,9 +676,22 @@ export function buildKpis(
     .filter((lead) => {
       const normalized = normalize(lead.vermieterName);
       if (!normalized) return false;
-      if (ownerByName.has(normalized)) return false;
-      if (normalizedInventoryOwners.has(normalized)) return false;
+      const isClosed = CLOSED_LEAD_STATUSES.has(lead.status ?? '');
+      if (!isClosed) {
+        if (ownerByName.has(normalized)) return false;
+        if (normalizedInventoryOwners.has(normalized)) return false;
+      }
       return true;
+    })
+    .filter((lead) => {
+      if (!CLOSED_LEAD_STATUSES.has(lead.status ?? '')) {
+        return true;
+      }
+      const referenceDate = lead.statusUpdatedAt || lead.datum;
+      if (!referenceDate) return true;
+      const parsed = parseISO(referenceDate);
+      if (Number.isNaN(parsed.getTime())) return true;
+      return differenceInCalendarDays(now, parsed) <= 7;
     })
     .sort((a, b) => {
       if (a.datum && b.datum) {
