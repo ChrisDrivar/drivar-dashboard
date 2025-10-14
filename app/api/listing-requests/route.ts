@@ -64,14 +64,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const preparedVehicles = vehiclesInput
+    type PreparedVehicle = {
+      vehicleLabel: string;
+      manufacturer: string;
+      vehicleType: string;
+      comment: string;
+    };
+
+    const preparedVehicles: PreparedVehicle[] = vehiclesInput
       .map((vehicle: any) => ({
         vehicleLabel: (vehicle?.vehicleLabel ?? '').trim(),
         manufacturer: (vehicle?.manufacturer ?? '').trim(),
         vehicleType: (vehicle?.vehicleType ?? '').trim(),
         comment: (vehicle?.comment ?? '').trim(),
       }))
-      .filter((vehicle) => vehicle.vehicleType.length > 0 || vehicle.vehicleLabel.length > 0);
+      .filter(
+        (vehicle: PreparedVehicle) =>
+          vehicle.vehicleType.length > 0 || vehicle.vehicleLabel.length > 0
+      );
 
     if (preparedVehicles.length === 0) {
       return NextResponse.json(
