@@ -36,6 +36,7 @@ import { AddListingRequestModal } from '@/components/AddListingRequestModal';
 import { PendingLeadsTable } from '@/components/PendingLeadsTable';
 import { AddVehicleToOwnerModal } from '@/components/AddVehicleToOwnerModal';
 import { DeleteOwnerDialog } from '@/components/DeleteOwnerDialog';
+import { DeleteVehicleDialog } from '@/components/DeleteVehicleDialog';
 import { EditLeadModal, type LeadUpdatePayload } from '@/components/EditLeadModal';
 import type { LeadStatus } from '@/lib/leadStatus';
 import type { InventoryEntry, PendingLeadEntry } from '@/types/kpis';
@@ -173,6 +174,11 @@ export default function DashboardPage() {
     onOpen: onOpenEditLeadModal,
     onClose: onCloseEditLeadModal,
   } = useDisclosure();
+  const {
+    isOpen: isDeleteVehicleDialogOpen,
+    onOpen: onOpenDeleteVehicleDialog,
+    onClose: onCloseDeleteVehicleDialog,
+  } = useDisclosure();
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [leadUpdatingRow, setLeadUpdatingRow] = useState<number | null>(null);
   const [initialOwnerForVehicleModal, setInitialOwnerForVehicleModal] = useState<ExistingOwnerOption | null>(null);
@@ -180,6 +186,8 @@ export default function DashboardPage() {
   const [isDeletingOwner, setIsDeletingOwner] = useState(false);
   const [editingLead, setEditingLead] = useState<PendingLeadEntry | null>(null);
   const [isUpdatingLeadDetails, setIsUpdatingLeadDetails] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<InventoryEntry | null>(null);
+  const [isDeletingVehicle, setIsDeletingVehicle] = useState(false);
   const toast = useToast();
 
   const vehiclesByCity = useMemo(() => {
@@ -244,12 +252,17 @@ export default function DashboardPage() {
     });
     return map;
   }, [inventoryList]);
+  const ownerSummaries = useMemo(() => Array.from(ownerMap.values()), [ownerMap]);
   const ownerOptionsList = useMemo<ExistingOwnerOption[]>(
     () =>
-      Array.from(ownerMap.values()).map(({ vehicleCount, ...rest }) => ({
-        ...rest,
+      ownerSummaries.map(({ name, country, region, city, address }) => ({
+        name,
+        country,
+        region,
+        city,
+        address,
       })),
-    [ownerMap]
+    [ownerSummaries]
   );
 
   const handleFilterUpdate = useCallback(
@@ -269,69 +282,39 @@ export default function DashboardPage() {
     onCloseAddVehicleModal();
   }, [onCloseAddVehicleModal]);
 
-  const handleDeleteOwnerDialogClose = useCallback(() => {
-    setOwnerToDelete(null);
-    onCloseDeleteOwnerDialog();
-  }, [onCloseDeleteOwnerDialog]);
+const handleDeleteOwnerDialogClose = useCallback(() => {
+  setOwnerToDelete(null);
+  onCloseDeleteOwnerDialog();
+}, [onCloseDeleteOwnerDialog]);
 
-  const handleEditLeadModalClose = useCallback(() => {
-    setEditingLead(null);
-    onCloseEditLeadModal();
-  }, [onCloseEditLeadModal]);
+const handleEditLeadModalClose = useCallback(() => {
+  setEditingLead(null);
+  onCloseEditLeadModal();
+}, [onCloseEditLeadModal]);
 
-  const handleOpenAddVehicleForOwner = useCallback(
-    (vehicle: InventoryEntry) => {
-      const normalized = normalizeOwnerName(vehicle.vermieterName ?? '');
-      if (!normalized) return;
-      const summary = ownerMap.get(normalized);
-      const option: ExistingOwnerOption = summary
-        ? {
-            name: summary.name,
-            country: summary.country,
-            region: summary.region,
-            city: summary.city,
-            address: summary.address,
-            street: summary.street,
-            postalCode: summary.postalCode,
-          }
-        : {
-            name: vehicle.vermieterName,
-            country: vehicle.land ?? '',
-            region: vehicle.region ?? '',
-            city: vehicle.stadt ?? '',
-            address: vehicle.ownerAddress ?? '',
-          };
-      setInitialOwnerForVehicleModal(option);
-      onOpenAddVehicleModal();
+const handleDeleteVehicleDialogClose = useCallback(() => {
+  setVehicleToDelete(null);
+  onCloseDeleteVehicleDialog();
+}, [onCloseDeleteVehicleDialog]);
+
+  const handleOwnerSelectionChange = useCallback(
+    (selection: string | null) => {
+      if (!selection) {
+        setOwnerToDelete(null);
+        return;
+      }
+      const normalized = normalizeOwnerName(selection);
+      const summary = ownerMap.get(normalized) ?? null;
+      setOwnerToDelete(summary);
     },
-    [onOpenAddVehicleModal, ownerMap]
-  );
-
-  const handleRequestDeleteOwner = useCallback(
-    (vehicle: InventoryEntry) => {
-      const normalized = normalizeOwnerName(vehicle.vermieterName ?? '');
-      if (!normalized) return;
-      const summary = ownerMap.get(normalized);
-      const fallbackCount =
-        summary?.vehicleCount ??
-        inventoryList.filter(
-          (entry) => normalizeOwnerName(entry.vermieterName ?? '') === normalized
-        ).length;
-      setOwnerToDelete({
-        name: summary?.name ?? vehicle.vermieterName,
-        country: summary?.country ?? vehicle.land ?? '',
-        region: summary?.region ?? vehicle.region ?? '',
-        city: summary?.city ?? vehicle.stadt ?? '',
-        address: summary?.address ?? vehicle.ownerAddress ?? '',
-        vehicleCount: fallbackCount > 0 ? fallbackCount : 1,
-      });
-      onOpenDeleteOwnerDialog();
-    },
-    [inventoryList, onOpenDeleteOwnerDialog, ownerMap]
+    [ownerMap]
   );
 
   const handleConfirmDeleteOwner = useCallback(async () => {
-    if (!ownerToDelete) return;
+    if (!ownerToDelete) {
+      toast({ status: 'warning', title: 'Bitte einen Vermieter auswählen.' });
+      return;
+    }
     setIsDeletingOwner(true);
     try {
       const response = await fetch('/api/partners', {
@@ -362,6 +345,52 @@ export default function DashboardPage() {
       setIsDeletingOwner(false);
     }
   }, [mutate, onCloseDeleteOwnerDialog, ownerToDelete, toast]);
+
+  const handleDeleteVehicleRequest = useCallback(
+    (vehicle: InventoryEntry) => {
+      if (!vehicle.sheetRowIndex) {
+        toast({ status: 'warning', title: 'Zeile für dieses Fahrzeug fehlt.' });
+        return;
+      }
+      setVehicleToDelete(vehicle);
+      onOpenDeleteVehicleDialog();
+    },
+    [onOpenDeleteVehicleDialog, toast]
+  );
+
+  const handleConfirmDeleteVehicle = useCallback(async () => {
+    if (!vehicleToDelete?.sheetRowIndex) {
+      toast({ status: 'warning', title: 'Kein Fahrzeug ausgewählt.' });
+      return;
+    }
+    setIsDeletingVehicle(true);
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIndex: vehicleToDelete.sheetRowIndex }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Fahrzeug konnte nicht gelöscht werden.');
+      }
+
+      toast({ status: 'success', title: 'Fahrzeug gelöscht.' });
+      await mutate();
+      setVehicleToDelete(null);
+      onCloseDeleteVehicleDialog();
+    } catch (error) {
+      console.error('[inventory-delete]', error);
+      toast({
+        status: 'error',
+        title: 'Löschung fehlgeschlagen',
+        description: (error as Error).message,
+      });
+    } finally {
+      setIsDeletingVehicle(false);
+    }
+  }, [mutate, onCloseDeleteVehicleDialog, toast, vehicleToDelete]);
 
   const handleLeadEditRequest = useCallback(
     (lead: PendingLeadEntry) => {
@@ -535,6 +564,17 @@ export default function DashboardPage() {
             >
               Fahrzeug zu Vermieter
             </Button>
+            <Button
+              colorScheme="red"
+              onClick={() => {
+                setOwnerToDelete(null);
+                onOpenDeleteOwnerDialog();
+              }}
+              w={{ base: '100%', md: 'auto' }}
+              isDisabled={ownerSummaries.length === 0}
+            >
+              Vermieter löschen
+            </Button>
             <Button variant="outline" onClick={onOpenLeadModal} w={{ base: '100%', md: 'auto' }}>
               Akquise Vermieter
             </Button>
@@ -622,8 +662,7 @@ export default function DashboardPage() {
           query={vehicleQuery}
           onQueryChange={setVehicleQuery}
           onClearQuery={() => setVehicleQuery('')}
-          onAddVehicleClick={handleOpenAddVehicleForOwner}
-          onDeleteOwnerClick={handleRequestDeleteOwner}
+          onDeleteVehicleClick={handleDeleteVehicleRequest}
         />
 
         <MissingInventoryTable rows={missingInventoryList} isLoading={isLoading} />
@@ -702,12 +741,22 @@ export default function DashboardPage() {
         defaultRegion={filters.region}
       />
       <DeleteOwnerDialog
-        isOpen={isDeleteOwnerDialogOpen && Boolean(ownerToDelete)}
+        isOpen={isDeleteOwnerDialogOpen && ownerSummaries.length > 0}
         onCancel={handleDeleteOwnerDialogClose}
         onConfirm={handleConfirmDeleteOwner}
         isDeleting={isDeletingOwner}
         ownerName={ownerToDelete?.name ?? null}
         vehiclesCount={ownerToDelete?.vehicleCount ?? 0}
+        owners={ownerSummaries}
+        onOwnerChange={handleOwnerSelectionChange}
+      />
+      <DeleteVehicleDialog
+        isOpen={isDeleteVehicleDialogOpen && Boolean(vehicleToDelete)}
+        onCancel={handleDeleteVehicleDialogClose}
+        onConfirm={handleConfirmDeleteVehicle}
+        isDeleting={isDeletingVehicle}
+        vehicleLabel={vehicleToDelete?.fahrzeugLabel ?? null}
+        ownerName={vehicleToDelete?.vermieterName}
       />
     </>
   );

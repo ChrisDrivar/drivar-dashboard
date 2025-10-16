@@ -3,6 +3,8 @@ export type InventoryEntry = {
   region: string;
   vermieterId?: string;
   vermieterName: string;
+  sheetRowIndex?: number;
+  sheetRowIndex?: number;
   fahrzeugId?: string;
   fahrzeugLabel: string;
   fahrzeugtyp: string;

@@ -12,31 +12,26 @@ import {
   Checkbox,
   Flex,
   Input,
-  Select,
   Text,
 } from '@chakra-ui/react';
 
-type DeleteOwnerDialogProps = {
+type DeleteVehicleDialogProps = {
   isOpen: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   isDeleting?: boolean;
-  ownerName: string | null;
-  vehiclesCount?: number;
-  owners?: Array<{ name: string; vehicleCount: number }>;
-  onOwnerChange?: (ownerName: string | null) => void;
+  vehicleLabel: string | null;
+  ownerName?: string | null;
 };
 
-export function DeleteOwnerDialog({
+export function DeleteVehicleDialog({
   isOpen,
   onCancel,
   onConfirm,
   isDeleting = false,
+  vehicleLabel,
   ownerName,
-  vehiclesCount = 0,
-  owners,
-  onOwnerChange,
-}: DeleteOwnerDialogProps) {
+}: DeleteVehicleDialogProps) {
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const [ackChecked, setAckChecked] = useState(false);
   const [confirmationInput, setConfirmationInput] = useState('');
@@ -46,75 +41,54 @@ export function DeleteOwnerDialog({
       setAckChecked(false);
       setConfirmationInput('');
     }
-  }, [isOpen]);
+  }, [isOpen, vehicleLabel]);
 
-  useEffect(() => {
-    setAckChecked(false);
-    setConfirmationInput('');
-  }, [ownerName]);
-
-  const normalizedOwner = (ownerName ?? '').trim().toLowerCase();
+  const normalizedLabel = (vehicleLabel ?? '').trim().toLowerCase();
   const normalizedInput = confirmationInput.trim().toLowerCase();
-  const hasSelection = normalizedOwner.length > 0;
-  const isConfirmDisabled = !ackChecked || !hasSelection || normalizedOwner !== normalizedInput;
+  const hasSelection = normalizedLabel.length > 0;
+  const isConfirmDisabled = !ackChecked || !hasSelection || normalizedLabel !== normalizedInput;
 
   return (
     <AlertDialog isOpen={isOpen} leastDestructiveRef={cancelRef} onClose={onCancel} isCentered>
       <AlertDialogOverlay />
       <AlertDialogContent>
         <AlertDialogHeader fontSize="lg" fontWeight="bold">
-          Vermieter löschen
+          Fahrzeug löschen
         </AlertDialogHeader>
         <AlertDialogBody display="grid" gap={4}>
-          {owners && owners.length > 0 && (
-            <Flex direction="column" gap={2}>
-              <Text fontSize="sm" color="gray.300">
-                Vermieter auswählen
-              </Text>
-              <Select
-                placeholder="Auswahl"
-                value={ownerName ?? ''}
-                onChange={(event) => {
-                  const value = event.target.value || null;
-                  onOwnerChange?.(value);
-                }}
-              >
-                {owners.map((owner) => (
-                  <option value={owner.name} key={owner.name}>
-                    {owner.name} ({owner.vehicleCount} Fahrzeuge)
-                  </option>
-                ))}
-              </Select>
-            </Flex>
-          )}
           <Text>
             {hasSelection ? (
               <>
-                Der Vermieter <strong>{ownerName}</strong> wird vollständig entfernt. Dazu gehören alle zugeordneten Fahrzeuge
-                (aktuell {vehiclesCount}) sowie Stammdaten im Tab <em>owners</em>.
+                Das Fahrzeug <strong>{vehicleLabel}</strong>
+                {ownerName ? (
+                  <>
+                    {' '}des Vermieters <strong>{ownerName}</strong>
+                  </>
+                ) : null}{' '}
+                wird dauerhaft aus dem Inventar entfernt.
               </>
             ) : (
-              'Bitte wähle einen Vermieter aus, um den Löschvorgang zu starten.'
+              'Bitte wähle ein Fahrzeug aus.'
             )}
           </Text>
           <Text color="orange.300">
-            Dieser Vorgang kann nicht rückgängig gemacht werden. Bitte bestätige den Löschvorgang bewusst.
+            Dieser Vorgang kann nicht rückgängig gemacht werden. Bestätige den Löschvorgang bewusst.
           </Text>
           <Checkbox
             isChecked={ackChecked}
             onChange={(event) => setAckChecked(event.target.checked)}
             isDisabled={!hasSelection}
           >
-            Ich habe verstanden, dass alle Daten dauerhaft entfernt werden.
+            Ich habe verstanden, dass das Fahrzeug entfernt wird.
           </Checkbox>
           <Flex direction="column" gap={2}>
             <Text fontSize="sm" color="gray.300">
-              Tippe zur Bestätigung den Vermieternamen ein:
+              Tippe zur Bestätigung die Fahrzeugbezeichnung ein:
             </Text>
             <Input
               value={confirmationInput}
               onChange={(event) => setConfirmationInput(event.target.value)}
-              placeholder={ownerName ?? ''}
+              placeholder={vehicleLabel ?? ''}
               variant="filled"
               isDisabled={!hasSelection}
             />
