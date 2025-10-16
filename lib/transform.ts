@@ -508,6 +508,17 @@ export function buildKpis(
       })
     : filteredInventory;
 
+  const inventoryResolved = inventoryAfterRadius.map((item) => {
+    const ownerContact = resolveOwnerContact(item);
+    const resolvedRegion = item.region?.trim().length
+      ? item.region.trim()
+      : ownerContact?.region?.trim() ?? '';
+    return {
+      item: { ...item, region: resolvedRegion },
+      ownerContact,
+    };
+  });
+
   const filteredInquiries = inquiries.filter((item) => {
     if (!matches(item.fahrzeugtyp, vehicleType)) return false;
     if (normalizedCity && (!radiusKm || !radiusCenter)) {
@@ -522,8 +533,8 @@ export function buildKpis(
   const ownerVehicleCounts = new Map<string, number>();
   const locationMap = new Map<string, LocationAccumulator>();
 
-  const onboarding = inventoryAfterRadius
-    .map((item) => {
+  const onboarding = inventoryResolved
+    .map(({ item }) => {
       const listedAtDate =
         item.listedAt instanceof Date
           ? item.listedAt
@@ -553,7 +564,7 @@ export function buildKpis(
     }))
     .sort((a, b) => (a.ageDays ?? 0) - (b.ageDays ?? 0));
 
-  inventoryAfterRadius.forEach((item) => {
+  inventoryResolved.forEach(({ item }) => {
     const landKey = item.land || 'Unbekannt';
     const ownerKey = item.vermieterId ? item.vermieterId : normalize(item.vermieterName);
     const regionKey = item.region || 'Unbekannt';
@@ -626,12 +637,18 @@ export function buildKpis(
 
   const meta = {
     availableCountries: uniqueValues(inventory.map((item) => item.land)),
-    availableRegions: uniqueValues(countryScopedInventory.map((item) => item.region)),
+    availableRegions: uniqueValues(
+      countryScopedInventory.map((item) => {
+        if (item.region?.trim()) return item.region.trim();
+        const contact = resolveOwnerContact(item);
+        return contact?.region?.trim() ?? '';
+      })
+    ),
     availableCities: uniqueValues(regionScopedInventory.map((item) => item.stadt)),
     availableVehicleTypes: uniqueValues(countryScopedInventory.map((item) => item.fahrzeugtyp)),
     availableManufacturers: uniqueValues(countryScopedInventory.map((item) => item.manufacturer)),
     totalInventoryRows: inventory.length,
-    filteredInventoryRows: inventoryAfterRadius.length,
+    filteredInventoryRows: inventoryResolved.length,
   };
 
   const geoLocations = [...locationMap.values()].map((entry) => ({
@@ -649,8 +666,7 @@ export function buildKpis(
     return value;
   };
 
-  const inventoryPayload = inventoryAfterRadius.map((item) => {
-    const ownerContact = resolveOwnerContact(item);
+  const inventoryPayload = inventoryResolved.map(({ item, ownerContact }) => {
     return {
       ...item,
       listedAt: toIsoString(item.listedAt),
