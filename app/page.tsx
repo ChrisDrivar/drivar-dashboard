@@ -348,14 +348,19 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
 
   const handleDeleteVehicleRequest = useCallback(
     (vehicle: InventoryEntry) => {
-      if (!vehicle.sheetRowIndex) {
+      const derivedIndex = inventoryList.indexOf(vehicle);
+      const computedRowIndex =
+        vehicle.sheetRowIndex ?? (derivedIndex >= 0 ? derivedIndex + 2 : undefined);
+
+      if (!computedRowIndex) {
         toast({ status: 'warning', title: 'Zeile für dieses Fahrzeug fehlt.' });
         return;
       }
-      setVehicleToDelete(vehicle);
+
+      setVehicleToDelete({ ...vehicle, sheetRowIndex: computedRowIndex });
       onOpenDeleteVehicleDialog();
     },
-    [onOpenDeleteVehicleDialog, toast]
+    [inventoryList, onOpenDeleteVehicleDialog, toast]
   );
 
   const handleConfirmDeleteVehicle = useCallback(async () => {
@@ -566,6 +571,7 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
             </Button>
             <Button
               colorScheme="red"
+              variant="solid"
               onClick={() => {
                 setOwnerToDelete(null);
                 onOpenDeleteOwnerDialog();

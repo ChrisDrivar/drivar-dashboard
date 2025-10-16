@@ -157,6 +157,7 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
           (pick(row, findIndex, ['vermieter_name', 'vermieter', 'partner'], fallback.vermieterName) ||
             `Unbekannter Vermieter ${index + 1}`)
             .trim(),
+        sheetRowIndex: index + 2,
         fahrzeugId: fahrzeugId || undefined,
         fahrzeugLabel: fahrzeugLabel.trim(),
         fahrzeugtyp:
