@@ -138,6 +138,8 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
 
       const land = (pick(row, findIndex, ['land', 'country'], fallback.land) || '').trim();
       const stadt = (pick(row, findIndex, ['stadt', 'city'], fallback.stadt) || '').trim();
+      const standortValue = pick(row, findIndex, ['standort', 'adresse', 'address']);
+      const ownerAddressFromInventory = standortValue ? standortValue.trim() : '';
 
       if ((latitude == null || Number.isNaN(latitude)) || (longitude == null || Number.isNaN(longitude))) {
         const resolved = resolveCityCoordinates(stadt, land);
@@ -150,7 +152,7 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
       return {
         land,
         region:
-          (pick(row, findIndex, ['region', 'bundesland', 'staat', 'standort'], fallback.region) || '').trim(),
+          (pick(row, findIndex, ['region', 'bundesland', 'staat'], fallback.region) || '').trim(),
         vermieterId:
           pick(row, findIndex, ['vermieter_id', 'partner_id'], fallback.vermieterId) || undefined,
         vermieterName:
@@ -169,6 +171,7 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
         status: (pick(row, findIndex, ['status', 'state'], fallback.status) || '').trim(),
         latitude: latitude ?? null,
         longitude: longitude ?? null,
+        ownerAddress: ownerAddressFromInventory || undefined,
       };
     })
     .filter((entry) => Boolean(entry.fahrzeugLabel));
@@ -655,7 +658,7 @@ export function buildKpis(
       ownerPhone: ownerContact?.telefon,
       ownerEmail: ownerContact?.email,
       ownerDomain: ownerContact?.domain,
-      ownerAddress: ownerContact?.adresse,
+      ownerAddress: ownerContact?.adresse ?? item.ownerAddress,
       ownerInternationalCustomers: ownerContact?.internationaleKunden,
       ownerCommission: ownerContact?.provision,
       ownerRanking: ownerContact?.ranking,
