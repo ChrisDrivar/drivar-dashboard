@@ -34,8 +34,11 @@ import { AddMissingInventoryModal } from '@/components/AddMissingInventoryModal'
 import { MissingInventoryTable } from '@/components/MissingInventoryTable';
 import { AddListingRequestModal } from '@/components/AddListingRequestModal';
 import { PendingLeadsTable } from '@/components/PendingLeadsTable';
+import { AddVehicleToOwnerModal } from '@/components/AddVehicleToOwnerModal';
+import { DeleteOwnerDialog } from '@/components/DeleteOwnerDialog';
+import { EditLeadModal, type LeadUpdatePayload } from '@/components/EditLeadModal';
 import type { LeadStatus } from '@/lib/leadStatus';
-import type { PendingLeadEntry } from '@/types/kpis';
+import type { InventoryEntry, PendingLeadEntry } from '@/types/kpis';
 import type { KpiFilters } from '@/hooks/useKpiFilters';
 import { useKpiFilters } from '@/hooks/useKpiFilters';
 import { useKpis } from '@/hooks/useKpis';
@@ -125,6 +128,22 @@ function SectionCard({ title, description, isLoaded, children }: SectionProps) {
   );
 }
 
+type ExistingOwnerOption = {
+  name: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  street?: string;
+  postalCode?: string;
+  address?: string;
+};
+
+type OwnerSummary = ExistingOwnerOption & {
+  vehicleCount: number;
+};
+
+const normalizeOwnerName = (value: string) => value.trim().toLowerCase();
+
 export default function DashboardPage() {
   const { filters, setFilters, resetFilters, filterParams } = useKpiFilters();
   const { kpis, isLoading, isError, mutate } = useKpis(filterParams);
@@ -139,8 +158,28 @@ export default function DashboardPage() {
     onOpen: onOpenLeadModal,
     onClose: onCloseLeadModal,
   } = useDisclosure();
+  const {
+    isOpen: isAddVehicleModalOpen,
+    onOpen: onOpenAddVehicleModal,
+    onClose: onCloseAddVehicleModal,
+  } = useDisclosure();
+  const {
+    isOpen: isDeleteOwnerDialogOpen,
+    onOpen: onOpenDeleteOwnerDialog,
+    onClose: onCloseDeleteOwnerDialog,
+  } = useDisclosure();
+  const {
+    isOpen: isEditLeadModalOpen,
+    onOpen: onOpenEditLeadModal,
+    onClose: onCloseEditLeadModal,
+  } = useDisclosure();
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [leadUpdatingRow, setLeadUpdatingRow] = useState<number | null>(null);
+  const [initialOwnerForVehicleModal, setInitialOwnerForVehicleModal] = useState<ExistingOwnerOption | null>(null);
+  const [ownerToDelete, setOwnerToDelete] = useState<OwnerSummary | null>(null);
+  const [isDeletingOwner, setIsDeletingOwner] = useState(false);
+  const [editingLead, setEditingLead] = useState<PendingLeadEntry | null>(null);
+  const [isUpdatingLeadDetails, setIsUpdatingLeadDetails] = useState(false);
   const toast = useToast();
 
   const vehiclesByCity = useMemo(() => {
@@ -176,9 +215,42 @@ export default function DashboardPage() {
   const availableVehicleTypes = kpis?.meta.availableVehicleTypes ?? [];
   const availableManufacturers = kpis?.meta.availableManufacturers ?? [];
   const geoLocations = kpis?.geo.locations ?? [];
-  const inventoryList = kpis?.inventory ?? [];
+  const inventoryList = useMemo(() => kpis?.inventory ?? [], [kpis?.inventory]);
   const missingInventoryList = kpis?.missingInventory ?? [];
   const pendingLeadsList = kpis?.pendingLeads ?? [];
+  const ownerMap = useMemo(() => {
+    const map = new Map<string, OwnerSummary>();
+    inventoryList.forEach((item) => {
+      const name = (item.vermieterName ?? '').trim();
+      if (!name) return;
+      const key = normalizeOwnerName(name);
+      const existing = map.get(key);
+      if (existing) {
+        existing.vehicleCount += 1;
+        if (!existing.country && item.land) existing.country = item.land;
+        if (!existing.region && item.region) existing.region = item.region;
+        if (!existing.city && item.stadt) existing.city = item.stadt;
+        if (!existing.address && item.ownerAddress) existing.address = item.ownerAddress;
+        return;
+      }
+      map.set(key, {
+        name,
+        country: item.land ?? '',
+        region: item.region ?? '',
+        city: item.stadt ?? '',
+        address: item.ownerAddress ?? '',
+        vehicleCount: 1,
+      });
+    });
+    return map;
+  }, [inventoryList]);
+  const ownerOptionsList = useMemo<ExistingOwnerOption[]>(
+    () =>
+      Array.from(ownerMap.values()).map(({ vehicleCount, ...rest }) => ({
+        ...rest,
+      })),
+    [ownerMap]
+  );
 
   const handleFilterUpdate = useCallback(
     (nextFilters: KpiFilters) => {
@@ -191,6 +263,170 @@ export default function DashboardPage() {
     resetFilters();
     setVehicleQuery('');
   }, [resetFilters]);
+
+  const handleAddVehicleModalClose = useCallback(() => {
+    setInitialOwnerForVehicleModal(null);
+    onCloseAddVehicleModal();
+  }, [onCloseAddVehicleModal]);
+
+  const handleDeleteOwnerDialogClose = useCallback(() => {
+    setOwnerToDelete(null);
+    onCloseDeleteOwnerDialog();
+  }, [onCloseDeleteOwnerDialog]);
+
+  const handleEditLeadModalClose = useCallback(() => {
+    setEditingLead(null);
+    onCloseEditLeadModal();
+  }, [onCloseEditLeadModal]);
+
+  const handleOpenAddVehicleForOwner = useCallback(
+    (vehicle: InventoryEntry) => {
+      const normalized = normalizeOwnerName(vehicle.vermieterName ?? '');
+      if (!normalized) return;
+      const summary = ownerMap.get(normalized);
+      const option: ExistingOwnerOption = summary
+        ? {
+            name: summary.name,
+            country: summary.country,
+            region: summary.region,
+            city: summary.city,
+            address: summary.address,
+            street: summary.street,
+            postalCode: summary.postalCode,
+          }
+        : {
+            name: vehicle.vermieterName,
+            country: vehicle.land ?? '',
+            region: vehicle.region ?? '',
+            city: vehicle.stadt ?? '',
+            address: vehicle.ownerAddress ?? '',
+          };
+      setInitialOwnerForVehicleModal(option);
+      onOpenAddVehicleModal();
+    },
+    [onOpenAddVehicleModal, ownerMap]
+  );
+
+  const handleRequestDeleteOwner = useCallback(
+    (vehicle: InventoryEntry) => {
+      const normalized = normalizeOwnerName(vehicle.vermieterName ?? '');
+      if (!normalized) return;
+      const summary = ownerMap.get(normalized);
+      const fallbackCount =
+        summary?.vehicleCount ??
+        inventoryList.filter(
+          (entry) => normalizeOwnerName(entry.vermieterName ?? '') === normalized
+        ).length;
+      setOwnerToDelete({
+        name: summary?.name ?? vehicle.vermieterName,
+        country: summary?.country ?? vehicle.land ?? '',
+        region: summary?.region ?? vehicle.region ?? '',
+        city: summary?.city ?? vehicle.stadt ?? '',
+        address: summary?.address ?? vehicle.ownerAddress ?? '',
+        vehicleCount: fallbackCount > 0 ? fallbackCount : 1,
+      });
+      onOpenDeleteOwnerDialog();
+    },
+    [inventoryList, onOpenDeleteOwnerDialog, ownerMap]
+  );
+
+  const handleConfirmDeleteOwner = useCallback(async () => {
+    if (!ownerToDelete) return;
+    setIsDeletingOwner(true);
+    try {
+      const response = await fetch('/api/partners', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerName: ownerToDelete.name }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Löschung fehlgeschlagen.');
+      }
+
+      toast({
+        status: 'success',
+        title: 'Vermieter gelöscht.',
+      });
+      await mutate();
+      setOwnerToDelete(null);
+      onCloseDeleteOwnerDialog();
+    } catch (error) {
+      console.error('[owner-delete]', error);
+      toast({
+        status: 'error',
+        title: 'Löschung fehlgeschlagen',
+        description: (error as Error).message,
+      });
+    } finally {
+      setIsDeletingOwner(false);
+    }
+  }, [mutate, onCloseDeleteOwnerDialog, ownerToDelete, toast]);
+
+  const handleLeadEditRequest = useCallback(
+    (lead: PendingLeadEntry) => {
+      setEditingLead(lead);
+      onOpenEditLeadModal();
+    },
+    [onOpenEditLeadModal]
+  );
+
+  const handleLeadDetailsUpdate = useCallback(
+    async (payload: LeadUpdatePayload) => {
+      if (!editingLead) return;
+      setIsUpdatingLeadDetails(true);
+      try {
+        const response = await fetch('/api/listing-requests', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rowIndex: editingLead.sheetRowIndex,
+            status: editingLead.status,
+            createPartner: false,
+            lead: {
+              date: payload.date,
+              channel: payload.channel,
+              region: payload.region,
+              city: payload.city,
+              country: payload.country,
+              landlord: payload.landlord,
+              street: payload.street,
+              postalCode: payload.postalCode,
+              comment: payload.comment,
+            },
+            vehicles: [
+              {
+                vehicleLabel: payload.vehicleLabel || editingLead.fahrzeugLabel,
+                manufacturer: payload.manufacturer || editingLead.manufacturer,
+                vehicleType: payload.vehicleType || editingLead.fahrzeugtyp,
+                comment: payload.comment,
+              },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          const payloadResponse = await response.json().catch(() => ({}));
+          throw new Error(payloadResponse.error || 'Lead konnte nicht aktualisiert werden.');
+        }
+
+        toast({ status: 'success', title: 'Lead aktualisiert.' });
+        await mutate();
+        setEditingLead(null);
+        onCloseEditLeadModal();
+      } catch (error) {
+        console.error('[pending-leads-edit]', error);
+        toast({
+          status: 'error',
+          title: 'Aktualisierung fehlgeschlagen',
+          description: (error as Error).message,
+        });
+      } finally {
+        setIsUpdatingLeadDetails(false);
+      }
+    },
+    [editingLead, mutate, onCloseEditLeadModal, toast]
+  );
 
   const handleLeadStatusChange = useCallback(
     async (lead: PendingLeadEntry, nextStatus: LeadStatus) => {
@@ -288,6 +524,17 @@ export default function DashboardPage() {
             <Button colorScheme="brand" onClick={onOpen} w={{ base: '100%', md: 'auto' }}>
               Vermieter hinzufügen
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setInitialOwnerForVehicleModal(null);
+                onOpenAddVehicleModal();
+              }}
+              w={{ base: '100%', md: 'auto' }}
+              isDisabled={ownerOptionsList.length === 0}
+            >
+              Fahrzeug zu Vermieter
+            </Button>
             <Button variant="outline" onClick={onOpenLeadModal} w={{ base: '100%', md: 'auto' }}>
               Akquise Vermieter
             </Button>
@@ -375,6 +622,8 @@ export default function DashboardPage() {
           query={vehicleQuery}
           onQueryChange={setVehicleQuery}
           onClearQuery={() => setVehicleQuery('')}
+          onAddVehicleClick={handleOpenAddVehicleForOwner}
+          onDeleteOwnerClick={handleRequestDeleteOwner}
         />
 
         <MissingInventoryTable rows={missingInventoryList} isLoading={isLoading} />
@@ -384,6 +633,7 @@ export default function DashboardPage() {
           isLoading={isLoading}
           onStatusChange={handleLeadStatusChange}
           updatingRow={leadUpdatingRow}
+          onEdit={handleLeadEditRequest}
         />
 
         <Skeleton isLoaded={!isLoading} borderRadius="3xl">
@@ -403,6 +653,15 @@ export default function DashboardPage() {
         availableManufacturers={availableManufacturers}
         defaultCountry={filters.country}
       />
+      <AddVehicleToOwnerModal
+        isOpen={isAddVehicleModalOpen}
+        onClose={handleAddVehicleModalClose}
+        onSuccess={() => mutate()}
+        owners={ownerOptionsList}
+        initialOwner={initialOwnerForVehicleModal}
+        availableVehicleTypes={availableVehicleTypes}
+        availableManufacturers={availableManufacturers}
+      />
       <AddMissingInventoryModal
         isOpen={isMissingInventoryOpen}
         onClose={() => {
@@ -415,6 +674,18 @@ export default function DashboardPage() {
         availableVehicleTypes={availableVehicleTypes}
         defaultCountry={filters.country}
         defaultRegion={filters.region}
+      />
+      <EditLeadModal
+        isOpen={isEditLeadModalOpen && Boolean(editingLead)}
+        onClose={handleEditLeadModalClose}
+        lead={editingLead}
+        onSubmit={handleLeadDetailsUpdate}
+        isSubmitting={isUpdatingLeadDetails}
+        availableCountries={availableCountries}
+        availableRegions={availableRegions}
+        availableCities={availableCities}
+        availableVehicleTypes={availableVehicleTypes}
+        availableManufacturers={availableManufacturers}
       />
       <AddListingRequestModal
         isOpen={isLeadModalOpen}
@@ -429,6 +700,14 @@ export default function DashboardPage() {
         availableManufacturers={availableManufacturers}
         defaultCountry={filters.country}
         defaultRegion={filters.region}
+      />
+      <DeleteOwnerDialog
+        isOpen={isDeleteOwnerDialogOpen && Boolean(ownerToDelete)}
+        onCancel={handleDeleteOwnerDialogClose}
+        onConfirm={handleConfirmDeleteOwner}
+        isDeleting={isDeletingOwner}
+        ownerName={ownerToDelete?.name ?? null}
+        vehiclesCount={ownerToDelete?.vehicleCount ?? 0}
       />
     </>
   );

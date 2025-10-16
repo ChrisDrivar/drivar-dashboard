@@ -4,6 +4,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
+  ButtonGroup,
   Flex,
   Heading,
   Icon,
@@ -27,9 +28,10 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
 } from '@chakra-ui/react';
-import { CloseIcon } from '@chakra-ui/icons';
+import { AddIcon, CloseIcon, DeleteIcon } from '@chakra-ui/icons';
 import { FiSearch } from 'react-icons/fi';
 import type { InventoryEntry } from '@/types/kpis';
 
@@ -39,6 +41,8 @@ type VehicleSearchProps = {
   query: string;
   onQueryChange: (value: string) => void;
   onClearQuery?: () => void;
+  onAddVehicleClick?: (ownerEntry: InventoryEntry) => void;
+  onDeleteOwnerClick?: (ownerEntry: InventoryEntry) => void;
 };
 
 type ColumnDef = {
@@ -271,6 +275,8 @@ export function VehicleSearch({
   query,
   onQueryChange,
   onClearQuery,
+  onAddVehicleClick,
+  onDeleteOwnerClick,
 }: VehicleSearchProps) {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() =>
     Object.fromEntries(
@@ -358,6 +364,8 @@ export function VehicleSearch({
   };
 
   const visibleVehicles = filteredVehicles.slice(0, MAX_VISIBLE_ROWS);
+  const hasOwnerActions = Boolean(onAddVehicleClick || onDeleteOwnerClick);
+  const seenOwners = new Set<string>();
 
   return (
     <Skeleton isLoaded={!isLoading} borderRadius="3xl">
@@ -447,6 +455,7 @@ export function VehicleSearch({
                       </Th>
                     );
                   })}
+                  {hasOwnerActions && <Th minW={120}>Aktion</Th>}
                 </Tr>
               </Thead>
               <Tbody>
@@ -454,6 +463,13 @@ export function VehicleSearch({
                   const rowKey =
                     vehicle.fahrzeugId ||
                     `${vehicle.vermieterName}-${vehicle.fahrzeugLabel}-${index}`;
+                  const normalizedOwner = (vehicle.vermieterName || '').trim().toLowerCase();
+                  const isFirstOccurrence =
+                    normalizedOwner.length > 0 && !seenOwners.has(normalizedOwner);
+                  if (isFirstOccurrence) {
+                    seenOwners.add(normalizedOwner);
+                  }
+
                   return (
                     <Tr key={rowKey}>
                       {COLUMN_DEFS.map((column) => {
@@ -474,6 +490,43 @@ export function VehicleSearch({
                           </Td>
                         );
                       })}
+                      {hasOwnerActions && (
+                        <Td minW="7rem">
+                          {isFirstOccurrence ? (
+                            <ButtonGroup size="sm" variant="ghost">
+                              {onAddVehicleClick && (
+                                <Tooltip label="Fahrzeug hinzufügen">
+                                  <IconButton
+                                    aria-label="Fahrzeug hinzufügen"
+                                    icon={<AddIcon />}
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      onAddVehicleClick(vehicle);
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
+                              {onDeleteOwnerClick && (
+                                <Tooltip label="Vermieter löschen">
+                                  <IconButton
+                                    aria-label="Vermieter löschen"
+                                    icon={<DeleteIcon />}
+                                    colorScheme="red"
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      onDeleteOwnerClick(vehicle);
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
+                            </ButtonGroup>
+                          ) : (
+                            <Text color="gray.500">–</Text>
+                          )}
+                        </Td>
+                      )}
                     </Tr>
                   );
                 })}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { geocodeAddress } from '@/lib/geocode';
-import { appendRows, getHeaderRow } from '@/lib/googleSheets';
+import { appendRows, deleteRows, getHeaderRow } from '@/lib/googleSheets';
 import { getSheetValues } from '@/lib/sheets';
 import { mapOwners } from '@/lib/transform';
 import { resolveCityCoordinates } from '@/lib/geo';
@@ -12,6 +12,11 @@ const INVENTORY_APPEND_RANGE = process.env.GOOGLE_SHEET_INVENTORY_RANGE ?? 'inve
 const OWNERS_APPEND_RANGE = process.env.GOOGLE_SHEET_OWNERS_RANGE ?? 'owners';
 
 const normalize = (value: string) => value.trim().toLowerCase();
+const normalizeKey = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_');
 
 export async function POST(request: NextRequest) {
   try {
@@ -161,6 +166,111 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, coordinates: geocode ?? null });
   } catch (error) {
     console.error('[partners-api] Fehler', error);
+    return NextResponse.json({ error: 'Vorgang fehlgeschlagen' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const ownerName = typeof body?.ownerName === 'string' ? body.ownerName.trim() : '';
+    if (!ownerName) {
+      return NextResponse.json({ error: 'Vermietername fehlt' }, { status: 400 });
+    }
+
+    const normalizedOwner = normalize(ownerName);
+
+    const inventorySheet = await getSheetValues(INVENTORY_SHEET);
+    const [inventoryHeader, ...inventoryRows] = inventorySheet;
+    if (!inventoryHeader) {
+      return NextResponse.json(
+        { error: 'Inventar-Tab konnte nicht geladen werden.' },
+        { status: 500 }
+      );
+    }
+
+    const ownersSheet = await getSheetValues(OWNERS_SHEET);
+    const [ownersHeader, ...ownersRows] = ownersSheet;
+    if (!ownersHeader) {
+      return NextResponse.json(
+        { error: 'Vermieter-Tab konnte nicht geladen werden.' },
+        { status: 500 }
+      );
+    }
+
+    const resolveColumnIndex = (header: string[], candidates: string[]) => {
+      const normalizedHeader = header.map((column) => normalizeKey(column));
+      for (const candidate of candidates) {
+        const target = normalizeKey(candidate);
+        const index = normalizedHeader.indexOf(target);
+        if (index !== -1) {
+          return index;
+        }
+      }
+      return -1;
+    };
+
+    const inventoryOwnerIndex = resolveColumnIndex(inventoryHeader, [
+      'vermieter_name',
+      'vermieter',
+      'partner',
+      'name',
+    ]);
+
+    if (inventoryOwnerIndex === -1) {
+      return NextResponse.json(
+        { error: 'Spalte "Vermieter" im Inventar nicht gefunden.' },
+        { status: 500 }
+      );
+    }
+
+    const ownerNameIndex = resolveColumnIndex(ownersHeader, [
+      'vermieter_name',
+      'vermieter',
+      'name',
+      'partner',
+    ]);
+
+    if (ownerNameIndex === -1) {
+      return NextResponse.json(
+        { error: 'Spalte "Vermieter" im Vermieter-Tab nicht gefunden.' },
+        { status: 500 }
+      );
+    }
+
+    const inventoryRowIndices: number[] = [];
+    inventoryRows.forEach((row, index) => {
+      const cellValue = row[inventoryOwnerIndex] ?? '';
+      if (normalize(cellValue) === normalizedOwner) {
+        inventoryRowIndices.push(index + 2);
+      }
+    });
+
+    const ownerRowIndices: number[] = [];
+    ownersRows.forEach((row, index) => {
+      const cellValue = row[ownerNameIndex] ?? '';
+      if (normalize(cellValue) === normalizedOwner) {
+        ownerRowIndices.push(index + 2);
+      }
+    });
+
+    if (inventoryRowIndices.length === 0 && ownerRowIndices.length === 0) {
+      return NextResponse.json(
+        { error: 'Kein passender Vermieter gefunden.' },
+        { status: 404 }
+      );
+    }
+
+    await deleteRows(INVENTORY_SHEET, inventoryRowIndices);
+    await deleteRows(OWNERS_SHEET, ownerRowIndices);
+
+    return NextResponse.json({
+      success: true,
+      removedInventoryRows: inventoryRowIndices.length,
+      removedOwnerRows: ownerRowIndices.length,
+    });
+  } catch (error) {
+    console.error('[partners-api-delete] Fehler', error);
     return NextResponse.json({ error: 'Vorgang fehlgeschlagen' }, { status: 500 });
   }
 }

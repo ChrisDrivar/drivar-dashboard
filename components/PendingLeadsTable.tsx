@@ -35,6 +35,7 @@ type PendingLeadsTableProps = {
   isLoading?: boolean;
   onStatusChange?: (lead: PendingLeadEntry, status: LeadStatus) => void | Promise<void>;
   updatingRow?: number | null;
+  onEdit?: (lead: PendingLeadEntry) => void;
 };
 
 export function PendingLeadsTable({
@@ -42,6 +43,7 @@ export function PendingLeadsTable({
   isLoading = false,
   onStatusChange,
   updatingRow,
+  onEdit,
 }: PendingLeadsTableProps) {
   const handleStatusClick = async (lead: PendingLeadEntry, status: LeadStatus) => {
     if (!onStatusChange) return;
@@ -84,6 +86,7 @@ export function PendingLeadsTable({
                   <Th>Kanal</Th>
                   <Th>Status</Th>
                   <Th>Kommentar</Th>
+                  <Th>Aktion</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -138,6 +141,15 @@ export function PendingLeadsTable({
                     </Td>
                     <Td maxW="24rem">
                       <Text noOfLines={2}>{row.kommentar || '–'}</Text>
+                    </Td>
+                    <Td>
+                      {row.status === 'In Verhandlung' && onEdit ? (
+                        <Button size="sm" variant="ghost" onClick={() => onEdit(row)}>
+                          Ändern
+                        </Button>
+                      ) : (
+                        <Text color="gray.500">–</Text>
+                      )}
                     </Td>
                   </Tr>
                 ))}
