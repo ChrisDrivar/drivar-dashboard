@@ -1,6 +1,7 @@
 import { google, sheets_v4 } from 'googleapis';
 
 let sheetsClient: sheets_v4.Sheets | null = null;
+const sheetIdCache = new Map<string, number>();
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
@@ -19,6 +20,35 @@ async function getSheetsClient() {
   await auth.authorize();
   sheetsClient = google.sheets({ version: 'v4', auth });
   return sheetsClient;
+}
+
+async function getSheetIdByName(sheetName: string): Promise<number> {
+  if (sheetIdCache.has(sheetName)) {
+    return sheetIdCache.get(sheetName)!;
+  }
+
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  if (!spreadsheetId) {
+    throw new Error('GOOGLE_SHEET_ID ist nicht gesetzt');
+  }
+
+  const sheets = await getSheetsClient();
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets(properties(sheetId,title))',
+  });
+
+  const matchingSheet = response.data.sheets?.find(
+    (sheet) => sheet.properties?.title?.toLowerCase() === sheetName.toLowerCase()
+  );
+
+  const sheetId = matchingSheet?.properties?.sheetId;
+  if (sheetId == null) {
+    throw new Error(`Tab "${sheetName}" wurde nicht gefunden`);
+  }
+
+  sheetIdCache.set(sheetName, sheetId);
+  return sheetId;
 }
 
 export async function getHeaderRow(sheetName: string): Promise<string[]> {
@@ -101,5 +131,41 @@ export async function getSheetMatrix(sheetName: string, range?: string): Promise
       if (typeof cell === 'string') return cell;
       return String(cell);
     });
+  });
+}
+
+export async function deleteRows(sheetName: string, rowIndices: number[]) {
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+  if (!spreadsheetId) {
+    throw new Error('GOOGLE_SHEET_ID ist nicht gesetzt');
+  }
+  if (!Array.isArray(rowIndices) || rowIndices.length === 0) {
+    return;
+  }
+
+  const sheetId = await getSheetIdByName(sheetName);
+  const sheets = await getSheetsClient();
+  const uniqueRows = Array.from(
+    new Set(rowIndices.filter((row) => Number.isInteger(row) && row > 1))
+  ).sort((a, b) => b - a);
+
+  if (uniqueRows.length === 0) {
+    return;
+  }
+
+  const requests: sheets_v4.Schema$Request[] = uniqueRows.map((rowIndex) => ({
+    deleteDimension: {
+      range: {
+        sheetId,
+        dimension: 'ROWS',
+        startIndex: rowIndex - 1,
+        endIndex: rowIndex,
+      },
+    },
+  }));
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: { requests },
   });
 }
