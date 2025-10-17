@@ -29,6 +29,11 @@ export async function GET(request: NextRequest) {
     const manufacturer = request.nextUrl.searchParams.get('manufacturer') ?? undefined;
     const radiusParam = request.nextUrl.searchParams.get('radius');
     const radiusKm = radiusParam && !Number.isNaN(Number(radiusParam)) ? Number(radiusParam) : undefined;
+    const customLatParam = request.nextUrl.searchParams.get('customLat');
+    const customLngParam = request.nextUrl.searchParams.get('customLng');
+    const customLabel = request.nextUrl.searchParams.get('customLabel') ?? undefined;
+    const customLat = customLatParam && !Number.isNaN(Number(customLatParam)) ? Number(customLatParam) : undefined;
+    const customLng = customLngParam && !Number.isNaN(Number(customLngParam)) ? Number(customLngParam) : undefined;
 
     const [
       inventorySheet,
@@ -56,6 +61,10 @@ export async function GET(request: NextRequest) {
       vehicleType,
       manufacturer,
       radiusKm,
+      customLocation:
+        customLat != null && customLng != null
+          ? { latitude: customLat, longitude: customLng, label: customLabel }
+          : undefined,
     });
 
     return NextResponse.json(payload, {

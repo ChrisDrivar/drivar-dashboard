@@ -43,6 +43,7 @@ import { AddVehicleToOwnerModal } from '@/components/AddVehicleToOwnerModal';
 import { DeleteOwnerDialog } from '@/components/DeleteOwnerDialog';
 import { DeleteVehicleDialog } from '@/components/DeleteVehicleDialog';
 import { EditOwnerModal } from '@/components/EditOwnerModal';
+import { CustomLocationModal } from '@/components/CustomLocationModal';
 import { EditLeadModal, type LeadUpdatePayload } from '@/components/EditLeadModal';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import type { LeadStatus } from '@/lib/leadStatus';
@@ -161,9 +162,28 @@ type OwnerSummary = ExistingOwnerOption & {
 
 const normalizeOwnerName = (value: string) => value.trim().toLowerCase();
 
+type CustomLocation = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+};
+
 export default function DashboardPage() {
   const { filters, setFilters, resetFilters, filterParams } = useKpiFilters();
-  const { kpis, isLoading, isError, mutate } = useKpis(filterParams);
+  const [customLocation, setCustomLocation] = useState<CustomLocation | null>(null);
+  const combinedParams = useMemo(() => {
+    const params: Record<string, string> = { ...filterParams };
+    if (customLocation) {
+      params.customLat = String(customLocation.latitude);
+      params.customLng = String(customLocation.longitude);
+      params.customLabel = customLocation.label;
+    }
+    return params;
+  }, [filterParams, customLocation]);
+  const { kpis, isLoading, isError, mutate } = useKpis(combinedParams);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const {
     isOpen: isMissingInventoryOpen,
@@ -194,6 +214,11 @@ export default function DashboardPage() {
     isOpen: isDeleteVehicleDialogOpen,
     onOpen: onOpenDeleteVehicleDialog,
     onClose: onCloseDeleteVehicleDialog,
+  } = useDisclosure();
+  const {
+    isOpen: isCustomLocationOpen,
+    onOpen: onOpenCustomLocationModal,
+    onClose: onCloseCustomLocationModal,
   } = useDisclosure();
   const {
     isOpen: isEditOwnerModalOpen,
@@ -335,7 +360,34 @@ export default function DashboardPage() {
   const handleResetFilters = useCallback(() => {
     resetFilters();
     setVehicleQuery('');
+    setCustomLocation(null);
   }, [resetFilters]);
+
+  const handleCustomLocationSelect = useCallback(
+    (location: CustomLocation) => {
+      setCustomLocation(location);
+      setFilters((prev) => {
+        const nextCountry = prev.country || location.country || '';
+        const shouldResetRegion = prev.country && nextCountry && prev.country !== nextCountry;
+        return {
+          ...prev,
+          country: nextCountry,
+          region: shouldResetRegion ? '' : prev.region,
+          city: '',
+        };
+      });
+      onCloseCustomLocationModal();
+    },
+    [setFilters, onCloseCustomLocationModal]
+  );
+
+  const handleCustomLocationClear = useCallback(() => {
+    setCustomLocation(null);
+    setFilters((prev) => ({
+      ...prev,
+      radius: prev.city ? prev.radius : '',
+    }));
+  }, [setFilters]);
 
   const handleAddVehicleModalClose = useCallback(() => {
     setInitialOwnerForVehicleModal(null);
@@ -416,7 +468,8 @@ const handleEditLeadModalClose = useCallback(() => {
 
   const handleEditOwnerSuccess = useCallback(() => {
     mutate();
-  }, [mutate]);
+    onCloseEditOwnerModal();
+  }, [mutate, onCloseEditOwnerModal]);
 
   const handleDeleteVehicleRequest = useCallback(
     (vehicle: InventoryEntry) => {
@@ -636,6 +689,9 @@ const handleEditLeadModalClose = useCallback(() => {
               cities={availableCities}
               vehicleTypes={availableVehicleTypes}
               manufacturers={availableManufacturers}
+              customLocation={customLocation}
+              onCustomLocationRequest={onOpenCustomLocationModal}
+              onClearCustomLocation={customLocation ? handleCustomLocationClear : undefined}
             />
           <Flex
             justify={{ base: 'flex-start', md: 'flex-end' }}
@@ -801,6 +857,13 @@ const handleEditLeadModalClose = useCallback(() => {
         availableVehicleTypes={availableVehicleTypes}
         availableManufacturers={availableManufacturers}
         defaultCountry={filters.country}
+      />
+      <CustomLocationModal
+        isOpen={isCustomLocationOpen}
+        onClose={onCloseCustomLocationModal}
+        onSelect={handleCustomLocationSelect}
+        defaultCountry={filters.country}
+        availableCountries={availableCountries}
       />
       <EditOwnerModal
         isOpen={isEditOwnerModalOpen && ownerDetailsList.length > 0}

@@ -437,6 +437,7 @@ type KpiOptions = {
   vehicleType?: string;
   manufacturer?: string;
   radiusKm?: number;
+  customLocation?: { latitude: number; longitude: number; label?: string };
 };
 
 type LocationAccumulator = {
@@ -491,7 +492,7 @@ export function buildKpis(
   pendingLeads: PendingLeadEntry[],
   options: KpiOptions
 ): KpiPayload {
-  const { country, region, city, vehicleType, manufacturer, radiusKm } = options;
+  const { country, region, city, vehicleType, manufacturer, radiusKm, customLocation } = options;
   const now = new Date();
 
   const normaliseValue = (value?: string | null) => value?.trim().toLowerCase() ?? '';
@@ -503,7 +504,10 @@ export function buildKpis(
   const normalizedCity = city ? normaliseValue(city) : null;
 
   let radiusCenter: { latitude: number; longitude: number } | undefined;
-  if (radiusKm && normalizedCity) {
+  if (radiusKm && customLocation) {
+    radiusCenter = { latitude: customLocation.latitude, longitude: customLocation.longitude };
+  }
+  if (radiusKm && !radiusCenter && normalizedCity) {
     const candidate = inventory.find((item) => {
       if (!matches(item.stadt, city)) return false;
       if (country && !matches(item.land, country)) return false;
@@ -700,6 +704,13 @@ export function buildKpis(
     availableManufacturers: uniqueValues(countryScopedInventory.map((item) => item.manufacturer)),
     totalInventoryRows: inventory.length,
     filteredInventoryRows: inventoryResolved.length,
+    customLocation: customLocation
+      ? {
+          label: customLocation.label ?? '',
+          latitude: customLocation.latitude,
+          longitude: customLocation.longitude,
+        }
+      : null,
   };
 
   const geoLocations = [...locationMap.values()].map((entry) => ({

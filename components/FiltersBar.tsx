@@ -21,6 +21,9 @@ type FiltersBarProps = {
   cities?: string[];
   vehicleTypes?: string[];
   manufacturers?: string[];
+  customLocation?: { label: string } | null;
+  onCustomLocationRequest?: () => void;
+  onClearCustomLocation?: () => void;
 };
 
 const RADIUS_OPTIONS: Array<{ value: string; label: string }> = [
@@ -44,19 +47,25 @@ export function FiltersBar({
   cities = [],
   vehicleTypes = [],
   manufacturers = [],
+  customLocation,
+  onCustomLocationRequest,
+  onClearCustomLocation,
 }: FiltersBarProps) {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   const setFilter = (key: keyof KpiFilters, value: string) => {
     if (key === 'country') {
+      onClearCustomLocation?.();
       onChange({ ...filters, country: value, region: '', city: '', radius: '' });
       return;
     }
     if (key === 'region') {
+      onClearCustomLocation?.();
       onChange({ ...filters, region: value, city: '', radius: '' });
       return;
     }
     if (key === 'city') {
+      onClearCustomLocation?.();
       onChange({ ...filters, city: value, radius: '' });
       return;
     }
@@ -69,7 +78,8 @@ export function FiltersBar({
     Boolean(filters.city) ||
     Boolean(filters.vehicleType) ||
     Boolean(filters.manufacturer) ||
-    Boolean(filters.radius);
+    Boolean(filters.radius) ||
+    Boolean(customLocation);
 
   const Controls = (
     <>
@@ -109,17 +119,38 @@ export function FiltersBar({
         <Text fontSize="xs" textTransform="uppercase" color="gray.400" mb={1}>
           Stadt
         </Text>
-        <Select
-          placeholder="Alle Städte"
-          value={filters.city}
-          onChange={(event) => setFilter('city', event.target.value)}
-        >
-          {cities.map((value) => (
-            <option value={value} key={value}>
-              {value}
-            </option>
-          ))}
-        </Select>
+        <Stack spacing={2} w="100%">
+          <Select
+            placeholder="Alle Städte"
+            value={filters.city}
+            onChange={(event) => setFilter('city', event.target.value)}
+          >
+            {cities.map((value) => (
+              <option value={value} key={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onCustomLocationRequest}
+            isDisabled={!onCustomLocationRequest}
+            w="100%"
+          >
+            Custom Standort
+          </Button>
+          {customLocation && (
+            <Flex align="center" justify="space-between" px={3} py={1} bg="whiteAlpha.200" borderRadius="md">
+              <Text fontSize="xs" color="gray.200" noOfLines={1}>
+                {customLocation.label}
+              </Text>
+              <Button size="xs" variant="ghost" onClick={onClearCustomLocation} isDisabled={!onClearCustomLocation}>
+                Entfernen
+              </Button>
+            </Flex>
+          )}
+        </Stack>
       </Box>
       <Box flex="1">
         <Text fontSize="xs" textTransform="uppercase" color="gray.400" mb={1}>
@@ -160,7 +191,7 @@ export function FiltersBar({
         <Select
           value={filters.radius}
           onChange={(event) => setFilter('radius', event.target.value)}
-          isDisabled={!filters.city}
+          isDisabled={!filters.city && !customLocation}
         >
           {RADIUS_OPTIONS.map((option) => (
             <option key={option.value || 'none'} value={option.value}>

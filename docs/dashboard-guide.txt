@@ -11,6 +11,7 @@ Filter & Übersichten
 * Oben links stehen Filter für Land, Bundesland, Stadt, Fahrzeugtyp und Hersteller. Kombinationen sind möglich, „Zurücksetzen“ setzt alles auf die Standardansicht.
 * Die Kennzahlen-Karten zeigen Fahrzeuge, Vermieter und fehlende Fahrzeuge basierend auf den aktuellen Filtern.
 * Die Karte visualisiert Standorte, der Radius wird eingeblendet sobald Stadt + Radius-Filter aktiv sind.
+* Über „Custom Standort“ kann eine beliebige Stadt/PLZ geokodiert werden – ideal, wenn ein Kunde eine Anfrage aus einem Ort stellt, der noch nicht in der Auswahlliste steht. Die Umkreis-Suche lässt sich danach wie gewohnt verwenden.
 
 Fahrzeug-Suche
 --------------
@@ -19,9 +20,9 @@ Fahrzeug-Suche
 
 Vermieter verwalten
 -------------------
-* Button „Vermieter hinzufügen“ öffnet das Formular zur kompletten Anlage (inkl. Fahrzeuge).
-* „Fahrzeug zu Vermieter“ öffnet dieselbe Maske mit vorausgewähltem Vermieter – praktisch, wenn nur ein weiteres Fahrzeug erfasst werden soll.
-* Der rote Button „Vermieter löschen“ startet den Lösch-Dialog. Vermieter aus der Dropdown-Liste auswählen, Warnhinweis bestätigen, Namen eintippen und erst danach löschen. Damit werden sowohl Vermieter- als auch Inventarzeilen entfernt.
+* Im Menü „Vermieter“ stehen die Aktionen: hinzufügen, zusätzliches Fahrzeug erfassen, Stammdaten ändern sowie Vermieter löschen (rot gekennzeichnet).
+* „Vermieter ändern“ synchronisiert Stammdaten optional auf alle Fahrzeuge und aktualisiert auf Wunsch auch die Geocodierung.
+* Der Lösch-Dialog verlangt weiterhin Bestätigung via Checkbox + Namenseingabe; dabei werden Inventar- und Owners-Zeilen entfernt.
 
 Leads & Bedarf
 --------------
@@ -33,7 +34,8 @@ Typische Abläufe
 1. Neuer Vermieter: Button „Vermieter hinzufügen“, Pflichtfelder ausfüllen, Fahrzeuge ergänzen, speichern.
 2. Zusatzfahrzeug: Vermieter in der Fahrzeug-Suche suchen, Button „Fahrzeug zu Vermieter“, Fahrzeug anlegen, speichern.
 3. Fahrzeug deaktivieren/entfernen: In der Fahrzeug-Suche beim entsprechenden Eintrag den roten Papierkorb nutzen, Löschabfrage bestätigen.
-4. Vermieter offboarden: Über „Vermieter löschen“ in der Button-Leiste arbeiten; der Dropdown hilft, Tippfehler zu vermeiden.
+4. Custom Standort prüfen: Im Filter „Stadt“ auf „Custom Standort“ klicken, Land/Stadt/PLZ eingeben, Umkreis wählen und nahegelegene Vermieter sichtbar machen.
+5. Vermieter offboarden: Über „Vermieter löschen“ im Menü arbeiten; die Dropdown-Auswahl hilft, Tippfehler zu vermeiden.
 
 Hinweise
 --------

@@ -166,5 +166,6 @@ export type KpiPayload = {
     availableManufacturers: string[];
     totalInventoryRows: number;
     filteredInventoryRows: number;
+    customLocation: { label: string; latitude: number; longitude: number } | null;
   };
 };
