@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { geocodeAddress } from '@/lib/geocode';
-import { appendRows, deleteRows, getHeaderRow } from '@/lib/googleSheets';
+import { appendRows, deleteRows, getHeaderRow, updateRow } from '@/lib/googleSheets';
 import { getSheetValues } from '@/lib/sheets';
 import { mapInventory, mapOwners } from '@/lib/transform';
 import { resolveCityCoordinates } from '@/lib/geo';
