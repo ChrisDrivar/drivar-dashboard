@@ -23,6 +23,9 @@ import {
 import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 
 const CHANNEL_OPTIONS = ['Inbound', 'Outbound', 'Messe', 'Empfehlung'];
+const INTERNATIONAL_OPTIONS = ['ja', 'nein'];
+const RANKING_OPTIONS = ['A', 'B', 'C', 'D'];
+const EXPERIENCE_OPTIONS = ['0-1', ...Array.from({ length: 25 }, (_, index) => String(index + 1))];
 
 type VehicleForm = {
   id: string;
@@ -41,7 +44,15 @@ type ListingRequestForm = {
   landlord: string;
   street: string;
   postalCode: string;
+  phone: string;
+  email: string;
+  website: string;
+  internationalCustomers: string;
+  commission: string;
+  ranking: string;
+  experienceYears: string;
   comment: string;
+  ownerNotes: string;
   vehicles: VehicleForm[];
 };
 
@@ -65,7 +76,15 @@ const INITIAL_FORM: ListingRequestForm = {
   landlord: '',
   street: '',
   postalCode: '',
+  phone: '',
+  email: '',
+  website: '',
+  internationalCustomers: '',
+  commission: '',
+  ranking: '',
+  experienceYears: '',
   comment: '',
+  ownerNotes: '',
   vehicles: [createVehicle()],
 };
 
@@ -190,7 +209,15 @@ export function AddListingRequestModal({
             landlord: form.landlord.trim(),
             street: form.street.trim(),
             postalCode: form.postalCode.trim(),
+            phone: form.phone.trim(),
+            email: form.email.trim(),
+            website: form.website.trim(),
+            internationalCustomers: form.internationalCustomers,
+            commission: form.commission.trim(),
+            ranking: form.ranking,
+            experienceYears: form.experienceYears,
             comment: form.comment.trim(),
+            ownerNotes: form.ownerNotes.trim(),
           },
           vehicles,
         }),
@@ -306,6 +333,87 @@ export function AddListingRequestModal({
             </FormControl>
           </Flex>
 
+          <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <FormControl>
+              <FormLabel>Telefon</FormLabel>
+              <Input
+                value={form.phone}
+                onChange={setField('phone')}
+                placeholder="+49 ..."
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>E-Mail</FormLabel>
+              <Input
+                value={form.email}
+                onChange={setField('email')}
+                type="email"
+                placeholder="kontakt@example.com"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Website</FormLabel>
+              <Input
+                value={form.website}
+                onChange={setField('website')}
+                placeholder="https://"
+              />
+            </FormControl>
+          </Flex>
+
+          <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <FormControl>
+              <FormLabel>Internationale Kunden</FormLabel>
+              <Select
+                placeholder="Auswahl"
+                value={form.internationalCustomers}
+                onChange={setField('internationalCustomers')}
+              >
+                {INTERNATIONAL_OPTIONS.map((option) => (
+                  <option value={option} key={option}>
+                    {option.toUpperCase()}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Provision</FormLabel>
+              <Input
+                value={form.commission}
+                onChange={setField('commission')}
+                placeholder="z. B. 15 %"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Ranking</FormLabel>
+              <Select
+                placeholder="Auswahl"
+                value={form.ranking}
+                onChange={setField('ranking')}
+              >
+                {RANKING_OPTIONS.map((option) => (
+                  <option value={option} key={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Erfahrung (Jahre)</FormLabel>
+              <Select
+                placeholder="Auswahl"
+                value={form.experienceYears}
+                onChange={setField('experienceYears')}
+              >
+                {EXPERIENCE_OPTIONS.map((option) => (
+                  <option value={option} key={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          </Flex>
+
           <Box>
             <Flex align="center" justify="space-between" mb={3}>
               <Box fontWeight="semibold">Fahrzeuge</Box>
@@ -376,6 +484,16 @@ export function AddListingRequestModal({
               ))}
             </Box>
           </Box>
+
+          <FormControl>
+            <FormLabel>Notizen zum Vermieter</FormLabel>
+            <Textarea
+              value={form.ownerNotes}
+              onChange={setField('ownerNotes')}
+              placeholder="Interne Hinweise, Besonderheiten"
+              rows={2}
+            />
+          </FormControl>
 
           <FormControl>
             <FormLabel>Allgemeiner Kommentar</FormLabel>

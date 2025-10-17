@@ -21,6 +21,9 @@ import {
 import type { PendingLeadEntry } from '@/types/kpis';
 
 const CHANNEL_OPTIONS = ['Inbound', 'Outbound', 'Messe', 'Empfehlung'];
+const INTERNATIONAL_OPTIONS = ['ja', 'nein'];
+const RANKING_OPTIONS = ['A', 'B', 'C', 'D'];
+const EXPERIENCE_OPTIONS = ['0-1', ...Array.from({ length: 25 }, (_, index) => String(index + 1))];
 
 type LeadFormState = {
   date: string;
@@ -31,7 +34,15 @@ type LeadFormState = {
   landlord: string;
   street: string;
   postalCode: string;
+  phone: string;
+  email: string;
+  website: string;
+  internationalCustomers: string;
+  commission: string;
+  ranking: string;
+  experienceYears: string;
   comment: string;
+  ownerNotes: string;
   vehicleLabel: string;
   manufacturer: string;
   vehicleType: string;
@@ -57,7 +68,15 @@ const createInitialForm = (lead?: PendingLeadEntry | null): LeadFormState => ({
   landlord: lead?.vermieterName ?? '',
   street: lead?.street ?? '',
   postalCode: lead?.postalCode ?? '',
+  phone: lead?.phone ?? '',
+  email: lead?.email ?? '',
+  website: lead?.website ?? '',
+  internationalCustomers: lead?.internationalCustomers ?? '',
+  commission: lead?.commission ?? '',
+  ranking: lead?.ranking ?? '',
+  experienceYears: lead?.experienceYears ?? '',
   comment: lead?.kommentar ?? '',
+  ownerNotes: lead?.ownerNotes ?? '',
   vehicleLabel: lead?.fahrzeugLabel ?? '',
   manufacturer: lead?.manufacturer ?? '',
   vehicleType: lead?.fahrzeugtyp ?? '',
@@ -117,7 +136,15 @@ export function EditLeadModal({
       city: form.city.trim(),
       street: form.street.trim(),
       postalCode: form.postalCode.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim(),
+      website: form.website.trim(),
+      internationalCustomers: form.internationalCustomers,
+      commission: form.commission.trim(),
+      ranking: form.ranking,
+      experienceYears: form.experienceYears,
       comment: form.comment.trim(),
+      ownerNotes: form.ownerNotes.trim(),
       vehicleLabel: form.vehicleLabel.trim(),
       manufacturer: form.manufacturer.trim(),
       vehicleType: form.vehicleType.trim(),
@@ -207,6 +234,85 @@ export function EditLeadModal({
           </Flex>
           <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
             <FormControl>
+              <FormLabel>Telefon</FormLabel>
+              <Input
+                value={form.phone}
+                onChange={setField('phone')}
+                placeholder="+49 ..."
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>E-Mail</FormLabel>
+              <Input
+                value={form.email}
+                onChange={setField('email')}
+                type="email"
+                placeholder="kontakt@example.com"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Website</FormLabel>
+              <Input
+                value={form.website}
+                onChange={setField('website')}
+                placeholder="https://"
+              />
+            </FormControl>
+          </Flex>
+          <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <FormControl>
+              <FormLabel>Internationale Kunden</FormLabel>
+              <Select
+                placeholder="Auswahl"
+                value={form.internationalCustomers}
+                onChange={setField('internationalCustomers')}
+              >
+                {INTERNATIONAL_OPTIONS.map((option) => (
+                  <option value={option} key={option}>
+                    {option.toUpperCase()}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Provision</FormLabel>
+              <Input
+                value={form.commission}
+                onChange={setField('commission')}
+                placeholder="z. B. 15 %"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Ranking</FormLabel>
+              <Select
+                placeholder="Auswahl"
+                value={form.ranking}
+                onChange={setField('ranking')}
+              >
+                {RANKING_OPTIONS.map((option) => (
+                  <option value={option} key={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Erfahrung (Jahre)</FormLabel>
+              <Select
+                placeholder="Auswahl"
+                value={form.experienceYears}
+                onChange={setField('experienceYears')}
+              >
+                {EXPERIENCE_OPTIONS.map((option) => (
+                  <option value={option} key={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          </Flex>
+          <Flex gap={4} direction={{ base: 'column', md: 'row' }}>
+            <FormControl>
               <FormLabel>Fahrzeug</FormLabel>
               <Input
                 value={form.vehicleLabel}
@@ -242,6 +348,15 @@ export function EditLeadModal({
                 <option value={type} key={type} />
               ))}
             </Box>
+          </FormControl>
+          <FormControl>
+            <FormLabel>Notizen zum Vermieter</FormLabel>
+            <Textarea
+              value={form.ownerNotes}
+              onChange={setField('ownerNotes')}
+              placeholder="Interne Hinweise, Besonderheiten"
+              rows={2}
+            />
           </FormControl>
           <FormControl>
             <FormLabel>Kommentar</FormLabel>

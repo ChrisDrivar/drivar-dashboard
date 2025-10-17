@@ -4,6 +4,8 @@ export type InventoryEntry = {
   vermieterId?: string;
   vermieterName: string;
   sheetRowIndex?: number;
+  postalCode?: string;
+  street?: string;
   fahrzeugId?: string;
   fahrzeugLabel: string;
   fahrzeugtyp: string;
@@ -24,6 +26,11 @@ export type InventoryEntry = {
   ownerExperienceYears?: string;
   ownerNotes?: string;
   ownerLastChange?: string;
+  ownerRegion?: string;
+  ownerCity?: string;
+  ownerPostalCode?: string;
+  ownerStreet?: string;
+  ownerSheetRowIndex?: number;
 };
 
 export type InquiryEntry = {
@@ -51,10 +58,14 @@ export type OwnerContact = {
   vermieterId?: string;
   vermieterName: string;
   land: string;
+  region?: string;
+  stadt?: string;
   telefon?: string;
   email?: string;
   domain?: string;
   adresse?: string;
+  plz?: string;
+  strasse?: string;
   partnerSince?: string;
   status?: string;
   internationaleKunden?: string;
@@ -63,6 +74,7 @@ export type OwnerContact = {
   erfahrungJahre?: string;
   notizen?: string;
   letzteAenderung?: string;
+  sheetRowIndex?: number;
 };
 
 export type MissingInventoryEntry = {
@@ -97,6 +109,14 @@ export type PendingLeadEntry = {
   kommentar?: string;
   street?: string;
   postalCode?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  internationalCustomers?: string;
+  commission?: string;
+  ranking?: string;
+  experienceYears?: string;
+  ownerNotes?: string;
   status: string;
   statusUpdatedAt?: string;
   sheetRowIndex: number;

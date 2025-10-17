@@ -40,6 +40,14 @@ const synonyms: Record<string, string[]> = {
   kommentar: ['notes', 'bemerkung'],
   strasse: ['street', 'straße', 'adresszeile'],
   plz: ['postal_code', 'postleitzahl', 'zip', 'zip_code'],
+  telefon: ['telefon', 'phone'],
+  email: ['email', 'mail'],
+  website: ['website', 'domain', 'url'],
+  internationale_kunden: ['internationale_kunden', 'international', 'intl_kunden'],
+  provision: ['provision', 'commission'],
+  ranking: ['ranking'],
+  erfahrung_jahre: ['erfahrung_jahre', 'erfahrung', 'experience_years'],
+  notizen: ['notizen', 'notes', 'vermieter_notizen'],
   status: ['status'],
   status_updated_at: ['status_updated_at', 'status_geaendert', 'statusgeändert', 'status_date'],
 };
@@ -146,7 +154,15 @@ export async function POST(request: NextRequest) {
         land: (lead?.country ?? '').trim(),
         strasse: (lead?.street ?? '').trim(),
         plz: (lead?.postalCode ?? '').trim(),
+        telefon: (lead?.phone ?? '').trim(),
+        email: (lead?.email ?? '').trim(),
+        website: (lead?.website ?? '').trim(),
+        internationale_kunden: (lead?.internationalCustomers ?? '').trim(),
+        provision: (lead?.commission ?? '').trim(),
+        ranking: (lead?.ranking ?? '').trim(),
+        erfahrung_jahre: (lead?.experienceYears ?? '').trim(),
         kommentar: vehicle.comment || (lead?.comment ?? '').trim(),
+        notizen: (lead?.ownerNotes ?? '').trim(),
         status: (lead?.status ?? '').trim() || 'Angefragt',
         status_updated_at: statusUpdatedAt,
       })
@@ -222,8 +238,16 @@ export async function PATCH(request: NextRequest) {
       land: country,
       strasse: street,
       plz: postalCode,
+      telefon: (lead?.phone ?? '').trim(),
+      email: (lead?.email ?? '').trim(),
+      website: (lead?.website ?? '').trim(),
+      internationale_kunden: (lead?.internationalCustomers ?? '').trim(),
+      provision: (lead?.commission ?? '').trim(),
+      ranking: (lead?.ranking ?? '').trim(),
+      erfahrung_jahre: (lead?.experienceYears ?? '').trim(),
       kommentar:
         preparedVehicles[0]?.comment || (lead?.comment ?? '').trim() || (body?.comment ?? '').trim(),
+      notizen: (lead?.ownerNotes ?? '').trim(),
       status: statusValue,
       status_updated_at: statusUpdatedAt,
     });
@@ -297,7 +321,9 @@ async function createPartnerFromLead(
           standort: address,
           land: country,
           status: 'aktiv',
-          notizen: [vehicle.comment, (lead?.comment ?? '').trim()].filter(Boolean).join(' | '),
+          notizen: [vehicle.comment, (lead?.ownerNotes ?? '').trim(), (lead?.comment ?? '').trim()]
+            .filter(Boolean)
+            .join(' | '),
           latitude: geocode?.latitude ?? '',
           longitude: geocode?.longitude ?? '',
           plz: postalCode,
@@ -333,7 +359,13 @@ async function createPartnerFromLead(
             domain: (lead?.website ?? '').trim(),
             plz: postalCode,
             strasse: street,
-            notizen: (lead?.comment ?? '').trim(),
+            internationale_kunden: (lead?.internationalCustomers ?? '').trim(),
+            provision: (lead?.commission ?? '').trim(),
+            ranking: (lead?.ranking ?? '').trim(),
+            erfahrung_jahre: (lead?.experienceYears ?? '').trim(),
+            notizen: [ (lead?.ownerNotes ?? '').trim(), (lead?.comment ?? '').trim() ]
+              .filter(Boolean)
+              .join(' | '),
             letzte_aenderung: statusDate,
           },
           ownerSynonyms

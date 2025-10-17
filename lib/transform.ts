@@ -88,6 +88,8 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
     latitude: -1,
     longitude: -1,
     manufacturer: 2,
+    street: -1,
+    postalCode: -1,
   };
 
   return entries
@@ -127,6 +129,18 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
         manufacturerRaw && manufacturerRaw.trim()
           ? manufacturerRaw.trim()
           : undefined;
+      const streetValue = pick(
+        row,
+        findIndex,
+        ['strasse', 'straße', 'stra_e', 'street', 'straße_hausnummer', 'stra_e_hausnummer'],
+        fallback.street
+      );
+      const postalValue = pick(
+        row,
+        findIndex,
+        ['plz', 'postal_code', 'postleitzahl', 'zip', 'zip_code'],
+        fallback.postalCode
+      );
       let latitude =
         latitudeValue && !Number.isNaN(Number(latitudeValue))
           ? Number(String(latitudeValue).replace(',', '.'))
@@ -171,6 +185,8 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
         status: (pick(row, findIndex, ['status', 'state'], fallback.status) || '').trim(),
         latitude: latitude ?? null,
         longitude: longitude ?? null,
+        street: streetValue?.trim() || undefined,
+        postalCode: postalValue?.trim() || undefined,
         ownerAddress: ownerAddressFromInventory || undefined,
       };
     })
@@ -185,33 +201,41 @@ export function mapOwners(rows: string[][]): OwnerContact[] {
     vermieterId: 0,
     vermieterName: 1,
     land: 2,
+    region: 3,
     telefon: 3,
     email: 4,
     domain: 5,
     partnerSince: 6,
     status: 7,
     adresse: 8,
-    internationaleKunden: 9,
-    provision: 10,
-    ranking: 11,
-    erfahrung: 12,
-    notizen: 13,
-    letzteAenderung: 14,
+    stadt: 9,
+    plz: 10,
+    strasse: 11,
+    internationaleKunden: 12,
+    provision: 13,
+    ranking: 14,
+    erfahrung: 15,
+    notizen: 16,
+    letzteAenderung: 17,
   };
 
   return entries
-    .map((row) => ({
+    .map((row, index) => ({
       vermieterId:
         pick(row, findIndex, ['vermieter_id', 'partner_id'], fallback.vermieterId) || undefined,
       vermieterName:
         pick(row, findIndex, ['vermieter_name', 'name', 'vermieter'], fallback.vermieterName) || '',
       land: pick(row, findIndex, ['land', 'country'], fallback.land),
+      region: pick(row, findIndex, ['region', 'bundesland', 'staat', 'province'], fallback.region),
+      stadt: pick(row, findIndex, ['stadt', 'city'], fallback.stadt),
       telefon: pick(row, findIndex, ['telefon', 'phone'], fallback.telefon),
       email: pick(row, findIndex, ['email'], fallback.email),
       domain: pick(row, findIndex, ['domain', 'website'], fallback.domain),
       partnerSince: pick(row, findIndex, ['partner_since', 'seit'], fallback.partnerSince),
       status: pick(row, findIndex, ['status'], fallback.status),
       adresse: pick(row, findIndex, ['adresse', 'address', 'standort'], fallback.adresse),
+      plz: pick(row, findIndex, ['plz', 'postal_code', 'postleitzahl', 'zip', 'zip_code'], fallback.plz),
+      strasse: pick(row, findIndex, ['strasse', 'straße', 'street', 'stra_e'], fallback.strasse),
       internationaleKunden: pick(
         row,
         findIndex,
@@ -233,6 +257,7 @@ export function mapOwners(rows: string[][]): OwnerContact[] {
         ['letzte_aenderung', 'letzte_änderung', 'last_change', 'last_update'],
         fallback.letzteAenderung
       ),
+      sheetRowIndex: index + 2,
     }))
     .filter((owner) => owner.vermieterName);
 }
@@ -336,6 +361,14 @@ export function mapPendingLeads(rows: string[][]): PendingLeadEntry[] {
     kommentar: 9,
     street: 10,
     postalCode: 11,
+    phone: -1,
+    email: -1,
+    website: -1,
+    internationalCustomers: -1,
+    commission: -1,
+    ranking: -1,
+    experienceYears: -1,
+    ownerNotes: -1,
     status: 12,
     statusUpdatedAt: 13,
   };
@@ -356,6 +389,24 @@ export function mapPendingLeads(rows: string[][]): PendingLeadEntry[] {
       kommentar: pick(row, findIndex, ['kommentar', 'notes', 'bemerkung'], fallback.kommentar),
       street: pick(row, findIndex, ['strasse', 'street'], fallback.street),
       postalCode: pick(row, findIndex, ['plz', 'postal_code', 'zip'], fallback.postalCode),
+      phone: pick(row, findIndex, ['telefon', 'phone'], fallback.phone),
+      email: pick(row, findIndex, ['email', 'mail'], fallback.email),
+      website: pick(row, findIndex, ['website', 'domain', 'url'], fallback.website),
+      internationalCustomers: pick(
+        row,
+        findIndex,
+        ['internationale_kunden', 'international', 'intl_kunden'],
+        fallback.internationalCustomers
+      ),
+      commission: pick(row, findIndex, ['provision', 'commission'], fallback.commission),
+      ranking: pick(row, findIndex, ['ranking'], fallback.ranking),
+      experienceYears: pick(
+        row,
+        findIndex,
+        ['erfahrung_jahre', 'erfahrung', 'experience_years'],
+        fallback.experienceYears
+      ),
+      ownerNotes: pick(row, findIndex, ['notizen', 'vermieter_notizen'], fallback.ownerNotes),
       status: pick(row, findIndex, ['status'], fallback.status) || 'Angefragt',
       statusUpdatedAt: pick(
         row,
@@ -681,6 +732,11 @@ export function buildKpis(
       ownerExperienceYears: ownerContact?.erfahrungJahre,
       ownerNotes: ownerContact?.notizen,
       ownerLastChange: ownerContact?.letzteAenderung,
+      ownerRegion: ownerContact?.region,
+      ownerCity: ownerContact?.stadt,
+      ownerPostalCode: ownerContact?.plz,
+      ownerStreet: ownerContact?.strasse,
+      ownerSheetRowIndex: ownerContact?.sheetRowIndex,
     };
   });
 

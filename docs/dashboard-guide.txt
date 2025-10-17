@@ -1,0 +1,42 @@
+DRIVAR Dashboard – Kurzleitfaden
+================================
+
+Anmelden
+--------
+* Browser öffnen und Dashboard-URL aufrufen.
+* Zugangsdaten der Basic-Auth eingeben (gleiche Kombination wie in der Team-Passwortliste).
+
+Filter & Übersichten
+--------------------
+* Oben links stehen Filter für Land, Bundesland, Stadt, Fahrzeugtyp und Hersteller. Kombinationen sind möglich, „Zurücksetzen“ setzt alles auf die Standardansicht.
+* Die Kennzahlen-Karten zeigen Fahrzeuge, Vermieter und fehlende Fahrzeuge basierend auf den aktuellen Filtern.
+* Die Karte visualisiert Standorte, der Radius wird eingeblendet sobald Stadt + Radius-Filter aktiv sind.
+
+Fahrzeug-Suche
+--------------
+* Suchfeld rechts oben nutzen, um nach Vermieter, Modell, Stadt oder Typ zu filtern.
+* In jeder Zeile gibt es rechts einen roten Papierkorb. Ein Klick öffnet die Sicherheitsabfrage – nach einer Bestätigung wird nur dieses einzelne Fahrzeug aus dem Inventory-Sheet entfernt.
+
+Vermieter verwalten
+-------------------
+* Button „Vermieter hinzufügen“ öffnet das Formular zur kompletten Anlage (inkl. Fahrzeuge).
+* „Fahrzeug zu Vermieter“ öffnet dieselbe Maske mit vorausgewähltem Vermieter – praktisch, wenn nur ein weiteres Fahrzeug erfasst werden soll.
+* Der rote Button „Vermieter löschen“ startet den Lösch-Dialog. Vermieter aus der Dropdown-Liste auswählen, Warnhinweis bestätigen, Namen eintippen und erst danach löschen. Damit werden sowohl Vermieter- als auch Inventarzeilen entfernt.
+
+Leads & Bedarf
+--------------
+* „Akquise Vermieter“ startet die Lead-Erfassung. Leads mit Status „In Verhandlung“ lassen sich direkt in der Tabelle bearbeiten oder im Status ändern.
+* „Fahrzeugbedarf erfassen“ schreibt neue Anforderungen in die Missing-Inventory-Tabelle und aktualisiert die KPI-Widgets sofort.
+
+Typische Abläufe
+----------------
+1. Neuer Vermieter: Button „Vermieter hinzufügen“, Pflichtfelder ausfüllen, Fahrzeuge ergänzen, speichern.
+2. Zusatzfahrzeug: Vermieter in der Fahrzeug-Suche suchen, Button „Fahrzeug zu Vermieter“, Fahrzeug anlegen, speichern.
+3. Fahrzeug deaktivieren/entfernen: In der Fahrzeug-Suche beim entsprechenden Eintrag den roten Papierkorb nutzen, Löschabfrage bestätigen.
+4. Vermieter offboarden: Über „Vermieter löschen“ in der Button-Leiste arbeiten; der Dropdown hilft, Tippfehler zu vermeiden.
+
+Hinweise
+--------
+* Alle Änderungen landen direkt im Google Sheet. Vor jedem Offboarding sicherstellen, dass keine offenen Leads mehr existieren.
+* Nach größeren Änderungen einmal „npm run lint“ bzw. „npm run build“ lokal laufen lassen, bevor auf Vercel deployt wird.
+* Bei Problemen mit der Geocodierung (z. B. neue Länder) eine kurze Notiz in `docs/context-memory.md` hinterlassen, damit wir die Resolver-Liste erweitern können.

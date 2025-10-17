@@ -11,6 +11,11 @@ import {
   Stack,
   Text,
   Button,
+  Menu,
+  MenuButton,
+  MenuDivider,
+  MenuItem,
+  MenuList,
   useDisclosure,
   useToast,
 } from '@chakra-ui/react';
@@ -37,7 +42,9 @@ import { PendingLeadsTable } from '@/components/PendingLeadsTable';
 import { AddVehicleToOwnerModal } from '@/components/AddVehicleToOwnerModal';
 import { DeleteOwnerDialog } from '@/components/DeleteOwnerDialog';
 import { DeleteVehicleDialog } from '@/components/DeleteVehicleDialog';
+import { EditOwnerModal } from '@/components/EditOwnerModal';
 import { EditLeadModal, type LeadUpdatePayload } from '@/components/EditLeadModal';
+import { ChevronDownIcon } from '@chakra-ui/icons';
 import type { LeadStatus } from '@/lib/leadStatus';
 import type { InventoryEntry, PendingLeadEntry } from '@/types/kpis';
 import type { KpiFilters } from '@/hooks/useKpiFilters';
@@ -141,6 +148,15 @@ type ExistingOwnerOption = {
 
 type OwnerSummary = ExistingOwnerOption & {
   vehicleCount: number;
+  phone?: string;
+  email?: string;
+  website?: string;
+  internationalCustomers?: string;
+  commission?: string;
+  ranking?: string;
+  experienceYears?: string;
+  notes?: string;
+  sheetRowIndex?: number;
 };
 
 const normalizeOwnerName = (value: string) => value.trim().toLowerCase();
@@ -178,6 +194,11 @@ export default function DashboardPage() {
     isOpen: isDeleteVehicleDialogOpen,
     onOpen: onOpenDeleteVehicleDialog,
     onClose: onCloseDeleteVehicleDialog,
+  } = useDisclosure();
+  const {
+    isOpen: isEditOwnerModalOpen,
+    onOpen: onOpenEditOwnerModal,
+    onClose: onCloseEditOwnerModal,
   } = useDisclosure();
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [leadUpdatingRow, setLeadUpdatingRow] = useState<number | null>(null);
@@ -233,20 +254,53 @@ export default function DashboardPage() {
       if (!name) return;
       const key = normalizeOwnerName(name);
       const existing = map.get(key);
+      const ownerRegion = item.ownerRegion ?? item.region ?? '';
+      const ownerCity = item.ownerCity ?? item.stadt ?? '';
+      const ownerStreet = item.ownerStreet ?? item.street ?? '';
+      const ownerPostal = item.ownerPostalCode ?? item.postalCode ?? '';
+      const ownerAddress = item.ownerAddress ?? [ownerStreet, ownerPostal, ownerCity].filter(Boolean).join(', ');
       if (existing) {
         existing.vehicleCount += 1;
         if (!existing.country && item.land) existing.country = item.land;
-        if (!existing.region && item.region) existing.region = item.region;
-        if (!existing.city && item.stadt) existing.city = item.stadt;
-        if (!existing.address && item.ownerAddress) existing.address = item.ownerAddress;
+        if (!existing.region && ownerRegion) existing.region = ownerRegion;
+        if (!existing.city && ownerCity) existing.city = ownerCity;
+        if (!existing.address && ownerAddress) existing.address = ownerAddress;
+        if (!existing.street && ownerStreet) existing.street = ownerStreet;
+        if (!existing.postalCode && ownerPostal) existing.postalCode = ownerPostal;
+        if (!existing.phone && item.ownerPhone) existing.phone = item.ownerPhone;
+        if (!existing.email && item.ownerEmail) existing.email = item.ownerEmail;
+        if (!existing.website && item.ownerDomain) existing.website = item.ownerDomain;
+        if (!existing.internationalCustomers && item.ownerInternationalCustomers) {
+          existing.internationalCustomers = item.ownerInternationalCustomers;
+        }
+        if (!existing.commission && item.ownerCommission) existing.commission = item.ownerCommission;
+        if (!existing.ranking && item.ownerRanking) existing.ranking = item.ownerRanking;
+        if (!existing.experienceYears && item.ownerExperienceYears) {
+          existing.experienceYears = item.ownerExperienceYears;
+        }
+        if (!existing.notes && item.ownerNotes) existing.notes = item.ownerNotes;
+        if (!existing.sheetRowIndex && item.ownerSheetRowIndex) {
+          existing.sheetRowIndex = item.ownerSheetRowIndex;
+        }
         return;
       }
       map.set(key, {
         name,
         country: item.land ?? '',
-        region: item.region ?? '',
-        city: item.stadt ?? '',
-        address: item.ownerAddress ?? '',
+        region: ownerRegion,
+        city: ownerCity,
+        street: ownerStreet,
+        postalCode: ownerPostal,
+        address: ownerAddress,
+        phone: item.ownerPhone,
+        email: item.ownerEmail,
+        website: item.ownerDomain,
+        internationalCustomers: item.ownerInternationalCustomers,
+        commission: item.ownerCommission,
+        ranking: item.ownerRanking,
+        experienceYears: item.ownerExperienceYears,
+        notes: item.ownerNotes,
+        sheetRowIndex: item.ownerSheetRowIndex,
         vehicleCount: 1,
       });
     });
@@ -255,13 +309,19 @@ export default function DashboardPage() {
   const ownerSummaries = useMemo(() => Array.from(ownerMap.values()), [ownerMap]);
   const ownerOptionsList = useMemo<ExistingOwnerOption[]>(
     () =>
-      ownerSummaries.map(({ name, country, region, city, address }) => ({
+      ownerSummaries.map(({ name, country, region, city, street, postalCode, address }) => ({
         name,
         country,
         region,
         city,
+        street,
+        postalCode,
         address,
       })),
+    [ownerSummaries]
+  );
+  const ownerDetailsList = useMemo(
+    () => ownerSummaries.map(({ vehicleCount: _vehicleCount, ...rest }) => rest),
     [ownerSummaries]
   );
 
@@ -292,10 +352,18 @@ const handleEditLeadModalClose = useCallback(() => {
   onCloseEditLeadModal();
 }, [onCloseEditLeadModal]);
 
-const handleDeleteVehicleDialogClose = useCallback(() => {
-  setVehicleToDelete(null);
-  onCloseDeleteVehicleDialog();
-}, [onCloseDeleteVehicleDialog]);
+  const handleEditOwnerModalOpen = useCallback(() => {
+    onOpenEditOwnerModal();
+  }, [onOpenEditOwnerModal]);
+
+  const handleEditOwnerModalClose = useCallback(() => {
+    onCloseEditOwnerModal();
+  }, [onCloseEditOwnerModal]);
+
+  const handleDeleteVehicleDialogClose = useCallback(() => {
+    setVehicleToDelete(null);
+    onCloseDeleteVehicleDialog();
+  }, [onCloseDeleteVehicleDialog]);
 
   const handleOwnerSelectionChange = useCallback(
     (selection: string | null) => {
@@ -305,7 +373,7 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
       }
       const normalized = normalizeOwnerName(selection);
       const summary = ownerMap.get(normalized) ?? null;
-      setOwnerToDelete(summary);
+      setOwnerToDelete(summary ? { ...summary } : null);
     },
     [ownerMap]
   );
@@ -345,6 +413,10 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
       setIsDeletingOwner(false);
     }
   }, [mutate, onCloseDeleteOwnerDialog, ownerToDelete, toast]);
+
+  const handleEditOwnerSuccess = useCallback(() => {
+    mutate();
+  }, [mutate]);
 
   const handleDeleteVehicleRequest = useCallback(
     (vehicle: InventoryEntry) => {
@@ -426,7 +498,15 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
               landlord: payload.landlord,
               street: payload.street,
               postalCode: payload.postalCode,
+              phone: payload.phone,
+              email: payload.email,
+              website: payload.website,
+              internationalCustomers: payload.internationalCustomers,
+              commission: payload.commission,
+              ranking: payload.ranking,
+              experienceYears: payload.experienceYears,
               comment: payload.comment,
+              ownerNotes: payload.ownerNotes,
             },
             vehicles: [
               {
@@ -482,7 +562,15 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
               landlord: lead.vermieterName,
               street: lead.street,
               postalCode: lead.postalCode,
+              phone: lead.phone,
+              email: lead.email,
+              website: lead.website,
+              internationalCustomers: lead.internationalCustomers,
+              commission: lead.commission,
+              ranking: lead.ranking,
+              experienceYears: lead.experienceYears,
               comment: lead.kommentar,
+              ownerNotes: lead.ownerNotes,
             },
             vehicles: [
               {
@@ -550,43 +638,59 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
               manufacturers={availableManufacturers}
             />
           <Flex
-            justify={{ base: 'stretch', md: 'flex-end' }}
+            justify={{ base: 'flex-start', md: 'flex-end' }}
             gap={3}
             direction={{ base: 'column', md: 'row' }}
             wrap={{ md: 'wrap' }}
           >
-            <Button colorScheme="brand" onClick={onOpen} w={{ base: '100%', md: 'auto' }}>
-              Vermieter hinzufügen
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setInitialOwnerForVehicleModal(null);
-                onOpenAddVehicleModal();
-              }}
-              w={{ base: '100%', md: 'auto' }}
-              isDisabled={ownerOptionsList.length === 0}
-            >
-              Fahrzeug zu Vermieter
-            </Button>
-            <Button
-              colorScheme="red"
-              variant="solid"
-              onClick={() => {
-                setOwnerToDelete(null);
-                onOpenDeleteOwnerDialog();
-              }}
-              w={{ base: '100%', md: 'auto' }}
-              isDisabled={ownerSummaries.length === 0}
-            >
-              Vermieter löschen
-            </Button>
-            <Button variant="outline" onClick={onOpenLeadModal} w={{ base: '100%', md: 'auto' }}>
-              Akquise Vermieter
-            </Button>
-            <Button variant="outline" onClick={onOpenMissingInventory} w={{ base: '100%', md: 'auto' }}>
-              Fahrzeugbedarf erfassen
-            </Button>
+            <Menu>
+              <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline">
+                Vermieter
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={onOpen}>Vermieter hinzufügen</MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setInitialOwnerForVehicleModal(null);
+                    onOpenAddVehicleModal();
+                  }}
+                  isDisabled={ownerOptionsList.length === 0}
+                >
+                  Fahrzeug zu Vermieter
+                </MenuItem>
+                <MenuItem onClick={handleEditOwnerModalOpen} isDisabled={ownerDetailsList.length === 0}>
+                  Vermieter ändern
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem
+                  onClick={() => {
+                    setOwnerToDelete(null);
+                    onOpenDeleteOwnerDialog();
+                  }}
+                  isDisabled={ownerSummaries.length === 0}
+                  color="red.400"
+                  _hover={{ bg: 'red.500', color: 'white' }}
+                >
+                  Vermieter löschen
+                </MenuItem>
+              </MenuList>
+            </Menu>
+            <Menu>
+              <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline">
+                Leads
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={onOpenLeadModal}>Akquise Vermieter</MenuItem>
+              </MenuList>
+            </Menu>
+            <Menu>
+              <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline">
+                Bedarf
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={onOpenMissingInventory}>Fahrzeugbedarf erfassen</MenuItem>
+              </MenuList>
+            </Menu>
           </Flex>
         </Stack>
 
@@ -697,6 +801,14 @@ const handleDeleteVehicleDialogClose = useCallback(() => {
         availableVehicleTypes={availableVehicleTypes}
         availableManufacturers={availableManufacturers}
         defaultCountry={filters.country}
+      />
+      <EditOwnerModal
+        isOpen={isEditOwnerModalOpen && ownerDetailsList.length > 0}
+        onClose={handleEditOwnerModalClose}
+        onSuccess={handleEditOwnerSuccess}
+        owners={ownerDetailsList}
+        availableCountries={availableCountries}
+        availableRegions={availableRegions}
       />
       <AddVehicleToOwnerModal
         isOpen={isAddVehicleModalOpen}

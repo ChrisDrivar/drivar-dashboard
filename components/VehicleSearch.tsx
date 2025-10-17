@@ -478,7 +478,7 @@ export function VehicleSearch({
                         );
                       })}
                       <Td minW="5rem">
-                        {onDeleteVehicleClick && vehicle.sheetRowIndex ? (
+                        {onDeleteVehicleClick ? (
                           <IconButton
                             aria-label="Fahrzeug löschen"
                             icon={<DeleteIcon />}
