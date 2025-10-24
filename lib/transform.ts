@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { resolveCityCoordinates } from '@/lib/geo';
+import { normaliseLand, resolveCityCoordinates } from '@/lib/geo';
 import type {
   GeoLocationPoint,
   InventoryEntry,
@@ -13,6 +13,38 @@ import type {
 
 const asNumber = (value: string | undefined): number =>
   Number.isFinite(Number(value)) ? Number(value) : 0;
+
+const parseCoordinate = (raw: string | number | undefined | null): number | undefined => {
+  if (raw == null) return undefined;
+  const stringValue =
+    typeof raw === 'number' && Number.isFinite(raw)
+      ? String(raw)
+      : String(raw).trim().replace(/,/g, '.');
+  if (!stringValue) return undefined;
+  const parsed = Number(stringValue);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const resolveCityWithFallback = (
+  city: string,
+  landCandidates: Array<string | undefined>
+): { latitude: number; longitude: number } | undefined => {
+  if (!city) return undefined;
+  const seen = new Set<string>();
+  for (const candidate of landCandidates) {
+    if (!candidate) continue;
+    const normalized = normaliseLand(candidate);
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    const resolved = resolveCityCoordinates(city, candidate);
+    if (resolved) {
+      return resolved;
+    }
+  }
+  return undefined;
+};
 
 const toDate = (value: string | Date | number | undefined | null): Date | null => {
   if (!value) return null;
@@ -141,22 +173,16 @@ export function mapInventory(rows: string[][]): InventoryEntry[] {
         ['plz', 'postal_code', 'postleitzahl', 'zip', 'zip_code'],
         fallback.postalCode
       );
-      let latitude =
-        latitudeValue && !Number.isNaN(Number(latitudeValue))
-          ? Number(String(latitudeValue).replace(',', '.'))
-          : undefined;
-      let longitude =
-        longitudeValue && !Number.isNaN(Number(longitudeValue))
-          ? Number(String(longitudeValue).replace(',', '.'))
-          : undefined;
+      let latitude = parseCoordinate(latitudeValue);
+      let longitude = parseCoordinate(longitudeValue);
 
       const land = (pick(row, findIndex, ['land', 'country'], fallback.land) || '').trim();
       const stadt = (pick(row, findIndex, ['stadt', 'city'], fallback.stadt) || '').trim();
       const standortValue = pick(row, findIndex, ['standort', 'adresse', 'address']);
       const ownerAddressFromInventory = standortValue ? standortValue.trim() : '';
 
-      if ((latitude == null || Number.isNaN(latitude)) || (longitude == null || Number.isNaN(longitude))) {
-        const resolved = resolveCityCoordinates(stadt, land);
+      if ((!Number.isFinite(latitude ?? NaN)) || (!Number.isFinite(longitude ?? NaN))) {
+        const resolved = resolveCityWithFallback(stadt, [land, 'de', 'at', 'ch', 'uk', 'us', 'ae', 'au']);
         if (resolved) {
           latitude = resolved.latitude;
           longitude = resolved.longitude;
@@ -471,15 +497,19 @@ const distanceInKm = (
   return EARTH_RADIUS_KM * c;
 };
 
-const getItemCoordinates = (item: InventoryEntry): { latitude: number; longitude: number } | undefined => {
-  if (typeof item.latitude === 'number' && typeof item.longitude === 'number') {
-    return { latitude: item.latitude, longitude: item.longitude };
-  }
-  if (item.stadt && item.land) {
-    const resolved = resolveCityCoordinates(item.stadt, item.land);
-    if (resolved) {
-      return resolved;
+const getItemCoordinates = (
+  item: InventoryEntry,
+  fallbackCountries: string[]
+): { latitude: number; longitude: number } | undefined => {
+  if (item.latitude != null && item.longitude != null) {
+    const latitude = typeof item.latitude === 'number' ? item.latitude : parseCoordinate(item.latitude);
+    const longitude = typeof item.longitude === 'number' ? item.longitude : parseCoordinate(item.longitude);
+    if (latitude != null && longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      return { latitude, longitude };
     }
+  }
+  if (item.stadt) {
+    return resolveCityWithFallback(item.stadt, [item.land, ...fallbackCountries]);
   }
   return undefined;
 };
@@ -495,13 +525,24 @@ export function buildKpis(
   const { country, region, city, vehicleType, manufacturer, radiusKm, customLocation } = options;
   const now = new Date();
 
-  const normaliseValue = (value?: string | null) => value?.trim().toLowerCase() ?? '';
+  const normaliseValue = (value?: string | null) =>
+    value ? stripDiacritics(value).trim().toLowerCase() : '';
   const matches = (source?: string | null, target?: string | null) => {
     if (!target) return true;
     return normaliseValue(source) === normaliseValue(target);
   };
 
   const normalizedCity = city ? normaliseValue(city) : null;
+
+  const countryFallbackOrder: Array<string | undefined> = [country, 'de', 'at', 'ch', 'uk', 'us', 'ae', 'au'];
+  const fallbackCountries = countryFallbackOrder.reduce<string[]>((acc, entry) => {
+    if (!entry) return acc;
+    const normalized = normaliseLand(entry);
+    if (acc.some((existing) => normaliseLand(existing) === normalized)) {
+      return acc;
+    }
+    return [...acc, entry];
+  }, []);
 
   let radiusCenter: { latitude: number; longitude: number } | undefined;
   if (radiusKm && customLocation) {
@@ -511,17 +552,15 @@ export function buildKpis(
     const candidate = inventory.find((item) => {
       if (!matches(item.stadt, city)) return false;
       if (country && !matches(item.land, country)) return false;
-      return Boolean(getItemCoordinates(item));
+      return Boolean(getItemCoordinates(item, fallbackCountries));
     });
 
     if (candidate) {
-      radiusCenter = getItemCoordinates(candidate) ?? undefined;
+      radiusCenter = getItemCoordinates(candidate, fallbackCountries) ?? undefined;
     }
 
-    const fallbackCountry = country || candidate?.land || '';
-
     if (!radiusCenter) {
-      radiusCenter = resolveCityCoordinates(city!, fallbackCountry);
+      radiusCenter = resolveCityWithFallback(city!, [candidate?.land, ...fallbackCountries]);
     }
   }
 
@@ -556,9 +595,10 @@ export function buildKpis(
 
   const inventoryAfterRadius = radiusKm && radiusCenter
     ? filteredInventory.filter((item) => {
-        const coordinates = getItemCoordinates(item);
+        const coordinates = getItemCoordinates(item, fallbackCountries);
         if (!coordinates) return false;
         const distance = distanceInKm(coordinates, radiusCenter!);
+        if (!Number.isFinite(distance)) return false;
         return distance <= radiusKm;
       })
     : filteredInventory;
