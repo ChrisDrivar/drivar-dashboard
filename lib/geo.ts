@@ -1,5 +1,7 @@
 type Coordinate = { latitude: number; longitude: number };
 
+const stripDiacritics = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
 const cityCoordinates: Record<string, Coordinate> = {
   'de:berlin': { latitude: 52.520008, longitude: 13.404954 },
   'de:hamburg': { latitude: 53.551086, longitude: 9.993682 },
@@ -36,6 +38,8 @@ const cityCoordinates: Record<string, Coordinate> = {
   'de:ludwigsburg': { latitude: 48.896435, longitude: 9.184904 },
   'de:anzing': { latitude: 48.15001, longitude: 11.85891 },
   'de:anzig': { latitude: 48.15001, longitude: 11.85891 },
+  'de:grunwald': { latitude: 48.0485, longitude: 11.5222 },
+  'de:grünwald': { latitude: 48.0485, longitude: 11.5222 },
   'de:göttingen': { latitude: 51.54128, longitude: 9.9158 },
   'de:gottingen': { latitude: 51.54128, longitude: 9.9158 },
   'de:bad nenndorf': { latitude: 52.33771, longitude: 9.37581 },
@@ -101,7 +105,7 @@ export const normaliseLand = (land: string) => {
 };
 
 const normaliseCity = (value: string) =>
-  value
+  stripDiacritics(value)
     .trim()
     .toLowerCase()
     .replace(/ß/g, 'ss')
