@@ -128,6 +128,7 @@ export type GeoLocationPoint = {
   stadt: string;
   land: string;
   vehicles: number;
+  owners: Array<{ key: string; id?: string; name: string }>;
   ownerCount: number;
 };
 

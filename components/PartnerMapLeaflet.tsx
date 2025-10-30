@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Circle, CircleMarker, Tooltip, useMap } from '
 import type { CircleMarkerProps } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L, { LatLngExpression } from 'leaflet';
-import { Box, Flex, Heading, Skeleton, Text } from '@chakra-ui/react';
+import { Box, Button, Flex, Heading, Skeleton, Stack, Text } from '@chakra-ui/react';
 import type { GeoLocationPoint } from '@/types/kpis';
 
 export type PartnerMapProps = {
@@ -14,6 +14,10 @@ export type PartnerMapProps = {
   isLoading?: boolean;
   showHalo?: boolean;
   radiusKm?: number;
+  activeOwnerKeys?: string[];
+  selectedOwners?: string[];
+  onLocationSelect?: (location: GeoLocationPoint) => void;
+  onClearSelection?: () => void;
 };
 
 type BoundsControllerProps = {
@@ -46,18 +50,35 @@ const circleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
   },
 };
 
+const activeCircleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
+  pathOptions: {
+    stroke: true,
+    color: '#FBC02D',
+    weight: 2,
+    fill: true,
+    fillColor: '#FFD54F',
+    fillOpacity: 0.95,
+  },
+};
+
 export default function PartnerMapLeaflet({
   locations,
   country,
   isLoading = false,
   showHalo = false,
   radiusKm,
+  activeOwnerKeys,
+  selectedOwners,
+  onLocationSelect,
+  onClearSelection,
 }: PartnerMapProps) {
   const coords = useMemo(() => {
     return locations
       .filter((item) => typeof item.latitude === 'number' && typeof item.longitude === 'number')
       .map((item) => [item.latitude, item.longitude] as [number, number]);
   }, [locations]);
+
+  const activeOwnerKeySet = useMemo(() => new Set(activeOwnerKeys ?? []), [activeOwnerKeys]);
 
   const bounds = useMemo(() => {
     if (!coords.length) return null;
@@ -85,17 +106,36 @@ export default function PartnerMapLeaflet({
         backdropFilter="blur(6px)"
         p={6}
       >
-        <Flex align="flex-start" justify="space-between" mb={4}>
+        <Flex align="flex-start" justify="space-between" mb={4} gap={4}>
           <Box>
             <Heading size="md">Standorte der Vermieter</Heading>
             <Text mt={1} fontSize="sm" color="gray.400">
               {country ? `Markt: ${country}` : 'Weltweite Verteilung der aktiven Standorte'}
             </Text>
           </Box>
-          <Box textAlign="right">
-            <Text fontSize="sm" color="gray.300">
-              {locations.length} Standorte
-            </Text>
+          <Box textAlign="right" minW="12rem">
+            <Stack spacing={2} align="flex-end">
+              <Text fontSize="sm" color="gray.300">
+                {locations.length} Standorte
+              </Text>
+              {selectedOwners && selectedOwners.length > 0 && (
+                <Stack spacing={1} align="flex-end">
+                  <Text fontSize="xs" color="gray.400" textTransform="uppercase">
+                    Kartenfilter
+                  </Text>
+                  <Text fontSize="sm" color="gray.100" maxW="20rem">
+                    {selectedOwners.slice(0, 3).join(', ')}
+                    {selectedOwners.length > 3 &&
+                      `, +${selectedOwners.length - 3} weitere`}
+                  </Text>
+                  {onClearSelection && (
+                    <Button size="xs" variant="outline" onClick={onClearSelection}>
+                      Filter löschen
+                    </Button>
+                  )}
+                </Stack>
+              )}
+            </Stack>
           </Box>
         </Flex>
 
@@ -114,6 +154,14 @@ export default function PartnerMapLeaflet({
             />
             {locations.map((location) => {
               const position: LatLngExpression = [location.latitude, location.longitude];
+              const isActive =
+                location.owners?.some((owner) => activeOwnerKeySet.has(owner.key)) ?? false;
+              const markerStyle = isActive ? activeCircleStyle : circleStyle;
+              const ownerPreview = location.owners?.slice(0, 4) ?? [];
+              const remainingOwners =
+                location.owners && location.owners.length > ownerPreview.length
+                  ? location.owners.length - ownerPreview.length
+                  : 0;
               return (
                 <Fragment key={`${location.latitude}-${location.longitude}`}>
                   {showHalo && (
@@ -126,7 +174,14 @@ export default function PartnerMapLeaflet({
                   <CircleMarker
                     center={position}
                     radius={6}
-                    pathOptions={circleStyle.pathOptions}
+                    pathOptions={markerStyle.pathOptions}
+                    eventHandlers={
+                      onLocationSelect
+                        ? {
+                            click: () => onLocationSelect(location),
+                          }
+                        : undefined
+                    }
                   >
                     <Tooltip direction="top" offset={[0, -8]} opacity={0.9} sticky>
                       <Box>
@@ -140,6 +195,23 @@ export default function PartnerMapLeaflet({
                           {location.vehicles} Fahrzeuge
                         </Text>
                         <Text fontSize="sm">{location.ownerCount} Vermieter</Text>
+                        {ownerPreview.length > 0 && (
+                          <Box mt={2}>
+                            <Text fontSize="xs" color="gray.300" textTransform="uppercase">
+                              Vermieter
+                            </Text>
+                            {ownerPreview.map((owner) => (
+                              <Text key={owner.key} fontSize="sm" color="gray.100">
+                                {owner.name}
+                              </Text>
+                            ))}
+                            {remainingOwners > 0 && (
+                              <Text fontSize="xs" color="gray.400">
+                                +{remainingOwners} weitere
+                              </Text>
+                            )}
+                          </Box>
+                        )}
                       </Box>
                     </Tooltip>
                   </CircleMarker>

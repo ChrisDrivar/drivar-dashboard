@@ -472,7 +472,7 @@ type LocationAccumulator = {
   stadt: string;
   land: string;
   vehicles: number;
-  owners: Set<string>;
+  owners: Map<string, { key: string; id?: string; name: string }>;
 };
 
 const EARTH_RADIUS_KM = 6371;
@@ -661,7 +661,9 @@ export function buildKpis(
 
   inventoryResolved.forEach(({ item }) => {
     const landKey = item.land || 'Unbekannt';
-    const ownerKey = item.vermieterId ? item.vermieterId : normalize(item.vermieterName);
+    const ownerKey = item.vermieterId ? item.vermieterId.trim() : normalize(item.vermieterName);
+    const ownerDisplayName = item.vermieterName?.trim() || 'Unbekannter Vermieter';
+    const ownerId = item.vermieterId?.trim();
     const regionKey = item.region || 'Unbekannt';
 
     vehiclesByLand.set(landKey, (vehiclesByLand.get(landKey) ?? 0) + 1);
@@ -686,7 +688,7 @@ export function buildKpis(
         stadt: item.stadt,
         land: item.land,
         vehicles: 0,
-        owners: new Set<string>(),
+        owners: new Map<string, { key: string; id?: string; name: string }>(),
       };
       existing.vehicles += 1;
       if (item.stadt) {
@@ -695,7 +697,11 @@ export function buildKpis(
       if (item.land) {
         existing.land = item.land;
       }
-      existing.owners.add(ownerKey);
+      existing.owners.set(ownerKey, {
+        key: ownerKey,
+        id: ownerId,
+        name: ownerDisplayName,
+      });
       locationMap.set(geoKey, existing);
     }
   });
@@ -753,14 +759,18 @@ export function buildKpis(
       : null,
   };
 
-  const geoLocations = [...locationMap.values()].map((entry) => ({
-    latitude: entry.latitude,
-    longitude: entry.longitude,
-    stadt: entry.stadt,
-    land: entry.land,
-    vehicles: entry.vehicles,
-    ownerCount: entry.owners.size,
-  }));
+  const geoLocations = [...locationMap.values()].map((entry) => {
+    const owners = [...entry.owners.values()];
+    return {
+      latitude: entry.latitude,
+      longitude: entry.longitude,
+      stadt: entry.stadt,
+      land: entry.land,
+      vehicles: entry.vehicles,
+      owners,
+      ownerCount: owners.length,
+    };
+  });
 
   const toIsoString = (value: InventoryEntry['listedAt']): string | null => {
     if (!value) return null;

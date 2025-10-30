@@ -47,7 +47,7 @@ import { CustomLocationModal } from '@/components/CustomLocationModal';
 import { EditLeadModal, type LeadUpdatePayload } from '@/components/EditLeadModal';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import type { LeadStatus } from '@/lib/leadStatus';
-import type { InventoryEntry, PendingLeadEntry } from '@/types/kpis';
+import type { GeoLocationPoint, InventoryEntry, PendingLeadEntry } from '@/types/kpis';
 import type { KpiFilters } from '@/hooks/useKpiFilters';
 import { useKpiFilters } from '@/hooks/useKpiFilters';
 import { useKpis } from '@/hooks/useKpis';
@@ -160,7 +160,9 @@ type OwnerSummary = ExistingOwnerOption & {
   sheetRowIndex?: number;
 };
 
-const normalizeOwnerName = (value: string) => value.trim().toLowerCase();
+const stripDiacritics = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+const normalizeOwnerName = (value: string) => stripDiacritics(value).trim().toLowerCase();
 
 type CustomLocation = {
   label: string;
@@ -169,6 +171,13 @@ type CustomLocation = {
   city?: string;
   postalCode?: string;
   country?: string;
+};
+
+type MapOwnerSelection = {
+  keys: string[];
+  ids: string[];
+  names: string[];
+  label: string;
 };
 
 export default function DashboardPage() {
@@ -226,6 +235,7 @@ export default function DashboardPage() {
     onClose: onCloseEditOwnerModal,
   } = useDisclosure();
   const [vehicleQuery, setVehicleQuery] = useState('');
+  const [mapOwnerSelection, setMapOwnerSelection] = useState<MapOwnerSelection | null>(null);
   const [leadUpdatingRow, setLeadUpdatingRow] = useState<number | null>(null);
   const [initialOwnerForVehicleModal, setInitialOwnerForVehicleModal] = useState<ExistingOwnerOption | null>(null);
   const [ownerToDelete, setOwnerToDelete] = useState<OwnerSummary | null>(null);
@@ -270,6 +280,24 @@ export default function DashboardPage() {
   const availableManufacturers = kpis?.meta.availableManufacturers ?? [];
   const geoLocations = kpis?.geo.locations ?? [];
   const inventoryList = useMemo(() => kpis?.inventory ?? [], [kpis?.inventory]);
+  const inventoryListForSearch = useMemo(() => {
+    if (!mapOwnerSelection || mapOwnerSelection.keys.length === 0) {
+      return inventoryList;
+    }
+    const ownerIdSet = new Set(mapOwnerSelection.ids.map((id) => id.toLowerCase()));
+    const ownerNameSet = new Set(mapOwnerSelection.names.map(normalizeOwnerName));
+    return inventoryList.filter((item) => {
+      const itemId = item.vermieterId?.trim().toLowerCase();
+      if (itemId && ownerIdSet.has(itemId)) {
+        return true;
+      }
+      const normalizedName = normalizeOwnerName(item.vermieterName ?? '');
+      if (normalizedName && ownerNameSet.has(normalizedName)) {
+        return true;
+      }
+      return false;
+    });
+  }, [inventoryList, mapOwnerSelection]);
   const missingInventoryList = kpis?.missingInventory ?? [];
   const pendingLeadsList = kpis?.pendingLeads ?? [];
   const ownerMap = useMemo(() => {
@@ -352,19 +380,22 @@ export default function DashboardPage() {
 
   const handleFilterUpdate = useCallback(
     (nextFilters: KpiFilters) => {
+      setMapOwnerSelection(null);
       setFilters(nextFilters);
     },
-    [setFilters]
+    [setFilters, setMapOwnerSelection]
   );
 
   const handleResetFilters = useCallback(() => {
     resetFilters();
     setVehicleQuery('');
     setCustomLocation(null);
-  }, [resetFilters]);
+    setMapOwnerSelection(null);
+  }, [resetFilters, setMapOwnerSelection]);
 
   const handleCustomLocationSelect = useCallback(
     (location: CustomLocation) => {
+      setMapOwnerSelection(null);
       setCustomLocation(location);
       setFilters((prev) => {
         const nextCountry = prev.country || location.country || '';
@@ -378,16 +409,57 @@ export default function DashboardPage() {
       });
       onCloseCustomLocationModal();
     },
-    [setFilters, onCloseCustomLocationModal]
+    [setFilters, onCloseCustomLocationModal, setMapOwnerSelection]
   );
 
   const handleCustomLocationClear = useCallback(() => {
     setCustomLocation(null);
+    setMapOwnerSelection(null);
     setFilters((prev) => ({
       ...prev,
       radius: prev.city ? prev.radius : '',
     }));
-  }, [setFilters]);
+  }, [setFilters, setMapOwnerSelection]);
+
+  const handleMapSelectionClear = useCallback(() => {
+    setMapOwnerSelection(null);
+    setVehicleQuery('');
+  }, [setMapOwnerSelection, setVehicleQuery]);
+
+  const handleMapLocationSelect = useCallback(
+    (location: GeoLocationPoint) => {
+      const owners = location.owners ?? [];
+      if (owners.length === 0) {
+        setMapOwnerSelection(null);
+        return;
+      }
+
+      const keys = owners.map((owner) => owner.key);
+      const ids = owners
+        .map((owner) => owner.id?.trim().toLowerCase())
+        .filter((id): id is string => Boolean(id));
+      const names = owners
+        .map((owner) => owner.name?.trim())
+        .filter((name): name is string => Boolean(name));
+
+      setMapOwnerSelection((previous) => {
+        const previousKeys = previous?.keys ?? [];
+        const isSameSelection =
+          previousKeys.length === keys.length && previousKeys.every((key) => keys.includes(key));
+        if (isSameSelection) {
+          return null;
+        }
+        return {
+          keys,
+          ids,
+          names,
+          label: location.stadt || location.land || 'Standort',
+        };
+      });
+      setVehicleQuery('');
+    },
+    [setMapOwnerSelection, setVehicleQuery]
+  );
 
   const handleAddVehicleModalClose = useCallback(() => {
     setInitialOwnerForVehicleModal(null);
@@ -786,6 +858,10 @@ const handleEditLeadModalClose = useCallback(() => {
             isLoading={isLoading}
             showHalo={Boolean(filters.city && filters.radius)}
             radiusKm={filters.radius ? Number(filters.radius) : undefined}
+            activeOwnerKeys={mapOwnerSelection?.keys}
+            selectedOwners={mapOwnerSelection?.names}
+            onLocationSelect={handleMapLocationSelect}
+            onClearSelection={mapOwnerSelection ? handleMapSelectionClear : undefined}
           />
           <SectionCard
             title="Fahrzeuge nach Stadt"
@@ -822,8 +898,19 @@ const handleEditLeadModalClose = useCallback(() => {
           </SectionCard>
         </SimpleGrid>
 
+        {mapOwnerSelection && (
+          <Flex align="center" justify="space-between" px={2} mb={2}>
+            <Text fontSize="sm" color="gray.300">
+              Fahrzeuge für: {mapOwnerSelection.names.join(', ')}
+            </Text>
+            <Button size="sm" variant="ghost" onClick={handleMapSelectionClear}>
+              Filter entfernen
+            </Button>
+          </Flex>
+        )}
+
         <VehicleSearch
-          vehicles={inventoryList}
+          vehicles={inventoryListForSearch}
           isLoading={isLoading}
           query={vehicleQuery}
           onQueryChange={setVehicleQuery}
