@@ -44,8 +44,8 @@ const MARKER_COLOR = '#ce7ad5';
 const circleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
   pathOptions: {
     stroke: true,
-    color: MARKER_COLOR,
-    weight: 1.5,
+    color: '#111827',
+    weight: 1,
     fill: true,
     fillColor: MARKER_COLOR,
     fillOpacity: 0.92,
@@ -55,8 +55,8 @@ const circleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
 const activeCircleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
   pathOptions: {
     stroke: true,
-    color: '#f7cfff',
-    weight: 2.5,
+    color: '#111827',
+    weight: 1.4,
     fill: true,
     fillColor: '#f0a2f1',
     fillOpacity: 0.98,
@@ -198,28 +198,32 @@ export default function PartnerMapLeaflet({
                   >
                     <Tooltip direction="top" offset={[0, -8]} opacity={0.9} sticky>
                       <Box>
-                        <Text fontWeight="bold">{location.stadt || 'Unbekannte Stadt'}</Text>
+                        <Text fontWeight="bold" color="gray.800">
+                          {location.stadt || 'Unbekannte Stadt'}
+                        </Text>
                         {location.land && (
-                          <Text fontSize="sm" color="gray.200">
+                          <Text fontSize="sm" color="gray.600">
                             {location.land}
                           </Text>
                         )}
-                        <Text fontSize="sm" mt={1}>
+                        <Text fontSize="sm" mt={1} color="gray.700">
                           {location.vehicles} Fahrzeuge
                         </Text>
-                        <Text fontSize="sm">{location.ownerCount} Vermieter</Text>
+                        <Text fontSize="sm" color="gray.700">
+                          {location.ownerCount} Vermieter
+                        </Text>
                         {ownerPreview.length > 0 && (
                           <Box mt={2}>
-                            <Text fontSize="xs" color="gray.300" textTransform="uppercase">
+                            <Text fontSize="xs" color="gray.500" textTransform="uppercase">
                               Vermieter
                             </Text>
                             {ownerPreview.map((owner) => (
-                              <Text key={owner.key} fontSize="sm" color="gray.100">
+                              <Text key={owner.key} fontSize="sm" color="gray.700">
                                 {owner.name}
                               </Text>
                             ))}
                             {remainingOwners > 0 && (
-                              <Text fontSize="xs" color="gray.400">
+                              <Text fontSize="xs" color="gray.500">
                                 +{remainingOwners} weitere
                               </Text>
                             )}
