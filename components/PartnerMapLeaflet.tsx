@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Circle, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import type { CircleMarkerProps } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L, { LatLngExpression } from 'leaflet';
+import L, { LatLngExpression, type LeafletMouseEvent } from 'leaflet';
 import { Box, Button, Flex, Heading, Skeleton, Stack, Text } from '@chakra-ui/react';
 import type { GeoLocationPoint } from '@/types/kpis';
 
@@ -39,25 +39,27 @@ function BoundsController({ bounds, fallbackCenter }: BoundsControllerProps) {
   return null;
 }
 
+const MARKER_COLOR = '#ce7ad5';
+
 const circleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
   pathOptions: {
     stroke: true,
-    color: '#E2E8F0',
-    weight: 1,
+    color: MARKER_COLOR,
+    weight: 1.5,
     fill: true,
-    fillColor: '#4D82FF',
-    fillOpacity: 0.9,
+    fillColor: MARKER_COLOR,
+    fillOpacity: 0.92,
   },
 };
 
 const activeCircleStyle: Pick<CircleMarkerProps, 'pathOptions'> = {
   pathOptions: {
     stroke: true,
-    color: '#FBC02D',
-    weight: 2,
+    color: '#f7cfff',
+    weight: 2.5,
     fill: true,
-    fillColor: '#FFD54F',
-    fillOpacity: 0.95,
+    fillColor: '#f0a2f1',
+    fillOpacity: 0.98,
   },
 };
 
@@ -168,7 +170,8 @@ export default function PartnerMapLeaflet({
                     <Circle
                       center={position}
                       radius={(radiusKm ?? 50) * 1000}
-                      pathOptions={{ color: '#4D82FF', weight: 1.5, opacity: 0.35, fillOpacity: 0 }}
+                      pathOptions={{ color: MARKER_COLOR, weight: 1.2, opacity: 0.25, fillOpacity: 0 }}
+                      interactive={false}
                     />
                   )}
                   <CircleMarker
@@ -179,6 +182,16 @@ export default function PartnerMapLeaflet({
                       onLocationSelect
                         ? {
                             click: () => onLocationSelect(location),
+                            mouseover: (event: LeafletMouseEvent) => {
+                              const target = event.target as L.Path & { _map?: L.Map };
+                              target.setStyle({ weight: 3 });
+                              target._map?.getContainer().style.setProperty('cursor', 'pointer');
+                            },
+                            mouseout: (event: LeafletMouseEvent) => {
+                              const target = event.target as L.Path & { _map?: L.Map };
+                              target.setStyle(markerStyle.pathOptions ?? {});
+                              target._map?.getContainer().style.removeProperty('cursor');
+                            },
                           }
                         : undefined
                     }
