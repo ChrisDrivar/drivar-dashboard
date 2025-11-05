@@ -61,23 +61,45 @@ const RANKING_OPTIONS = ['A', 'B', 'C', 'D'];
 const EXPERIENCE_OPTIONS = ['0-1', ...Array.from({ length: 25 }, (_, index) => String(index + 1))];
 const INTERNATIONAL_OPTIONS = ['ja', 'nein'];
 
-const createInitialForm = (owner?: OwnerDetails | null): FormState => ({
-  ownerName: owner?.name ?? '',
-  country: owner?.country ?? '',
-  region: owner?.region ?? '',
-  city: owner?.city ?? '',
-  street: owner?.street ?? '',
-  postalCode: owner?.postalCode ?? '',
-  phone: owner?.phone ?? '',
-  email: owner?.email ?? '',
-  website: owner?.website ?? '',
-  internationalCustomers: owner?.internationalCustomers ?? '',
-  commission: owner?.commission ?? '',
-  ranking: owner?.ranking ?? '',
-  experienceYears: owner?.experienceYears ?? '',
-  ownerNotes: owner?.notes ?? '',
-  applyToInventory: true,
-});
+const deriveAddressFallback = (owner?: OwnerDetails | null) => {
+  const fallbackAddress = owner?.address?.trim();
+  const street = owner?.street?.trim();
+  const postal = owner?.postalCode?.trim();
+
+  if (street && postal) {
+    return { street, postalCode: postal };
+  }
+
+  if (!fallbackAddress) {
+    return { street: street ?? '', postalCode: postal ?? '' };
+  }
+
+  const postalMatch = fallbackAddress.match(/(\d{4,5})(?:\s+|$)/);
+  const derivedPostal = postalMatch ? postalMatch[1] : postal ?? '';
+  const derivedStreet = street && street.length > 0 ? street : fallbackAddress;
+  return { street: derivedStreet, postalCode: derivedPostal };
+};
+
+const createInitialForm = (owner?: OwnerDetails | null): FormState => {
+  const { street, postalCode } = deriveAddressFallback(owner);
+  return {
+    ownerName: owner?.name ?? '',
+    country: owner?.country ?? '',
+    region: owner?.region ?? '',
+    city: owner?.city ?? '',
+    street,
+    postalCode,
+    phone: owner?.phone ?? '',
+    email: owner?.email ?? '',
+    website: owner?.website ?? '',
+    internationalCustomers: owner?.internationalCustomers ?? '',
+    commission: owner?.commission ?? '',
+    ranking: owner?.ranking ?? '',
+    experienceYears: owner?.experienceYears ?? '',
+    ownerNotes: owner?.notes ?? '',
+    applyToInventory: true,
+  };
+};
 
 type EditOwnerModalProps = {
   isOpen: boolean;
