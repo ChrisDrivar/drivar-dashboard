@@ -56,40 +56,50 @@ async function queryNominatim(parts: string[], contactEmail?: string) {
   } as GeocodeResult;
 }
 
-export async function geocodeAddress({ street, city, region, country }: GeocodeInput): Promise<GeocodeResult | null> {
-  const baseParts = [city, region, country].filter(
-    (value): value is string => typeof value === 'string' && value.trim().length > 0
-  );
-  if (baseParts.length < 2) {
-    return null;
+const buildQueryVariants = (street?: string, city?: string, region?: string, country?: string) => {
+  const parts = (values: Array<string | undefined>) =>
+    values.filter((value): value is string => Boolean(value && value.trim()));
+
+  const cityCountry = parts([city, country]);
+  const cityRegionCountry = parts([city, region, country]);
+  const queries: string[][] = [];
+
+  if (street) {
+    if (cityRegionCountry.length >= 2) queries.push([street, ...cityRegionCountry]);
+    if (cityCountry.length >= 2) queries.push([street, ...cityCountry]);
   }
+  if (cityRegionCountry.length >= 2) queries.push(cityRegionCountry);
+  if (cityCountry.length >= 2) queries.push(cityCountry);
+
+  const seen = new Set<string>();
+  return queries.filter((combo) => {
+    const key = combo.map((value) => value.toLowerCase()).join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+export async function geocodeAddress({ street, city, region, country }: GeocodeInput): Promise<GeocodeResult | null> {
+  const variants = buildQueryVariants(street, city, region, country);
+  if (variants.length === 0) return null;
 
   const contactEmail = process.env.GEOCODER_CONTACT_EMAIL;
 
-  const streetParts: string[] = street ? [street, ...baseParts] : baseParts;
-
-  const fullMatch = await queryNominatim(streetParts, contactEmail).catch((error) => {
-    console.error('[geocode] Fehler bei Street-Query', error);
-    return null;
-  });
-  if (fullMatch) {
-    return fullMatch;
+  for (const variant of variants) {
+    const result = await queryNominatim(variant, contactEmail).catch((error) => {
+      console.error('[geocode] Fehler bei Query', { variant: variant.join(', ') }, error);
+      return null;
+    });
+    if (result) return result;
   }
 
-  const cityMatch = await queryNominatim(baseParts, contactEmail).catch((error) => {
-    console.error('[geocode] Fehler bei City-Query', error);
-    return null;
-  });
-  if (cityMatch) {
-    return cityMatch;
-  }
-
-  const resolved = resolveCityCoordinates(city, country);
+  const resolved = resolveCityCoordinates(city ?? '', country ?? '');
   if (resolved) {
     return {
       latitude: resolved.latitude,
       longitude: resolved.longitude,
-      label: `${city}, ${country}`,
+      label: `${city ?? ''}, ${country ?? ''}`.trim(),
     };
   }
 
