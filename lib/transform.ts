@@ -11,6 +11,11 @@ import type {
   PendingLeadEntry,
 } from '@/types/kpis';
 
+type InventoryWithOwner = {
+  item: InventoryEntry;
+  ownerContact?: OwnerContact;
+};
+
 const asNumber = (value: string | undefined): number =>
   Number.isFinite(Number(value)) ? Number(value) : 0;
 
@@ -582,7 +587,17 @@ export function buildKpis(
     return ownerByName.get(normalizedName);
   };
 
-  const filteredInventory = inventory.filter((item) => {
+  const inventoryWithContacts: InventoryWithOwner[] = inventory.map((item) => {
+    const ownerContact = resolveOwnerContact(item);
+    const ownerRegion = ownerContact?.region?.trim();
+    const resolvedRegion = ownerRegion && ownerRegion.length ? ownerRegion : item.region?.trim() ?? '';
+    return {
+      item: { ...item, region: resolvedRegion },
+      ownerContact,
+    };
+  });
+
+  const filteredInventory = inventoryWithContacts.filter(({ item }) => {
     if (!matches(item.land, country)) return false;
     if (!matches(item.region, region)) return false;
     if (!matches(item.fahrzeugtyp, vehicleType)) return false;
@@ -594,7 +609,7 @@ export function buildKpis(
   });
 
   const inventoryAfterRadius = radiusKm && radiusCenter
-    ? filteredInventory.filter((item) => {
+    ? filteredInventory.filter(({ item }) => {
         const coordinates = getItemCoordinates(item, fallbackCountries);
         if (!coordinates) return false;
         const distance = distanceInKm(coordinates, radiusCenter!);
@@ -603,16 +618,7 @@ export function buildKpis(
       })
     : filteredInventory;
 
-  const inventoryResolved = inventoryAfterRadius.map((item) => {
-    const ownerContact = resolveOwnerContact(item);
-    const resolvedRegion = item.region?.trim().length
-      ? item.region.trim()
-      : ownerContact?.region?.trim() ?? '';
-    return {
-      item: { ...item, region: resolvedRegion },
-      ownerContact,
-    };
-  });
+  const inventoryResolved: InventoryWithOwner[] = inventoryAfterRadius;
 
   const filteredInquiries = inquiries.filter((item) => {
     if (!matches(item.fahrzeugtyp, vehicleType)) return false;
@@ -729,25 +735,19 @@ export function buildKpis(
 
   const normalisedCountry = country ? normaliseValue(country) : null;
   const countryScopedInventory = normalisedCountry
-    ? inventory.filter((item) => normaliseValue(item.land) === normalisedCountry)
-    : inventory;
+    ? inventoryWithContacts.filter(({ item }) => normaliseValue(item.land) === normalisedCountry)
+    : inventoryWithContacts;
   const normalisedRegion = region ? normaliseValue(region) : null;
   const regionScopedInventory = normalisedRegion
-    ? countryScopedInventory.filter((item) => normaliseValue(item.region) === normalisedRegion)
+    ? countryScopedInventory.filter(({ item }) => normaliseValue(item.region) === normalisedRegion)
     : countryScopedInventory;
 
   const meta = {
     availableCountries: uniqueValues(inventory.map((item) => item.land)),
-    availableRegions: uniqueValues(
-      countryScopedInventory.map((item) => {
-        if (item.region?.trim()) return item.region.trim();
-        const contact = resolveOwnerContact(item);
-        return contact?.region?.trim() ?? '';
-      })
-    ),
-    availableCities: uniqueValues(regionScopedInventory.map((item) => item.stadt)),
-    availableVehicleTypes: uniqueValues(countryScopedInventory.map((item) => item.fahrzeugtyp)),
-    availableManufacturers: uniqueValues(countryScopedInventory.map((item) => item.manufacturer)),
+    availableRegions: uniqueValues(countryScopedInventory.map(({ item }) => item.region)),
+    availableCities: uniqueValues(regionScopedInventory.map(({ item }) => item.stadt)),
+    availableVehicleTypes: uniqueValues(countryScopedInventory.map(({ item }) => item.fahrzeugtyp)),
+    availableManufacturers: uniqueValues(countryScopedInventory.map(({ item }) => item.manufacturer)),
     totalInventoryRows: inventory.length,
     filteredInventoryRows: inventoryResolved.length,
     customLocation: customLocation
