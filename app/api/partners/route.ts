@@ -41,6 +41,23 @@ const resolveColumnIndex = (header: string[], candidates: string[]) => {
   return -1;
 };
 
+const addFallbackHouseNumber = (street?: string) => {
+  if (!street) return '';
+  const trimmed = street.trim();
+  if (!trimmed) return '';
+  return /\d/.test(trimmed) ? trimmed : `${trimmed} 1`;
+};
+
+const buildStreetQuery = (street?: string, postalCode?: string, fallbackAddress?: string) => {
+  const streetWithNumber = addFallbackHouseNumber(street);
+  const postal = postalCode?.trim() ?? '';
+  const combined = [streetWithNumber, postal].filter((value) => value.length > 0).join(' ').trim();
+  if (combined.length > 0) {
+    return combined;
+  }
+  return fallbackAddress?.trim() ?? '';
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -85,8 +102,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const streetQuery = buildStreetQuery(street, postalCode, explicitAddress);
+
     let geocode = await geocodeAddress({
-      street: [street, postalCode].filter(Boolean).join(' ') || explicitAddress,
+      street: streetQuery || undefined,
       city,
       region,
       country,
@@ -156,6 +175,8 @@ export async function POST(request: NextRequest) {
             land: country,
             region,
             stadt: city,
+            latitude: geocode?.latitude ?? null,
+            longitude: geocode?.longitude ?? null,
             adresse: address,
             telefon: (owner.phone ?? '').trim(),
             email: (owner.email ?? '').trim(),
@@ -241,6 +262,16 @@ export async function PATCH(request: NextRequest) {
     const timestamp = (updates.lastChangeIso ?? new Date().toISOString().split('T')[0]).split('T')[0];
     const nextAddress = (updates.address ?? updates.adresse ?? '').trim() ||
       [nextStreet, nextPostalCode, nextCity].filter(Boolean).join(', ');
+    const geocodeStreet = buildStreetQuery(nextStreet, nextPostalCode, nextAddress);
+    let geocodeResult: Awaited<ReturnType<typeof geocodeAddress>> | null = null;
+    if (nextCity && nextCountry) {
+      geocodeResult = await geocodeAddress({
+        street: geocodeStreet || undefined,
+        city: nextCity,
+        region: nextRegion,
+        country: nextCountry,
+      });
+    }
 
     const assignOwner = (candidates: string[], value: string) => {
       const index = resolveColumnIndex(ownersHeader, candidates);
@@ -265,6 +296,12 @@ export async function PATCH(request: NextRequest) {
     assignOwner(['erfahrung_jahre', 'erfahrung', 'experience'], nextExperience);
     assignOwner(['notizen', 'notes', 'kommentar'], nextNotes);
     assignOwner(['letzte_aenderung', 'letzte_änderung', 'last_change', 'last_update'], timestamp);
+    if (geocodeResult?.latitude != null) {
+      assignOwner(['latitude', 'lat', 'breitengrad'], String(geocodeResult.latitude));
+    }
+    if (geocodeResult?.longitude != null) {
+      assignOwner(['longitude', 'lng', 'laengengrad', 'längengrad'], String(geocodeResult.longitude));
+    }
 
     await updateRow(
       `${OWNERS_SHEET}!A${ownerRowIndex}:${columnIndexToLetter(ownersHeader.length)}${ownerRowIndex}`,
@@ -279,19 +316,6 @@ export async function PATCH(request: NextRequest) {
         const matchingInventory = inventoryEntries.filter(
           (entry) => normalize(entry.vermieterName) === normalizedTarget
         );
-
-        let geocodeResult: { latitude?: number; longitude?: number } | null = null;
-        if (updates.street || updates.city || updates.country || updates.postalCode || updates.region) {
-          const geo = await geocodeAddress({
-            street: nextStreet || undefined,
-            city: nextCity,
-            region: nextRegion,
-            country: nextCountry,
-          });
-          if (geo) {
-            geocodeResult = geo;
-          }
-        }
 
         for (const vehicle of matchingInventory) {
           if (!vehicle.sheetRowIndex) continue;

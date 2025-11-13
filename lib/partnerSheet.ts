@@ -27,6 +27,8 @@ export const ownerSynonyms: Record<string, string[]> = {
   land: ['country'],
   region: ['bundesland', 'staat', 'province'],
   stadt: ['city', 'ort'],
+  latitude: ['lat', 'breitengrad'],
+  longitude: ['lng', 'laengengrad', 'längengrad'],
   adresse: ['standort', 'anschrift'],
   telefon: ['phone'],
   email: ['mail'],
@@ -60,4 +62,3 @@ export function buildRow(
     return typeof rawValue === 'number' ? rawValue : String(rawValue);
   });
 }
-
