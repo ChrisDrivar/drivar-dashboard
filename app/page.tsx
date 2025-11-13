@@ -163,6 +163,8 @@ type OwnerSummary = ExistingOwnerOption & {
 const stripDiacritics = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 const normalizeOwnerName = (value: string) => stripDiacritics(value).trim().toLowerCase();
+const normalizeFilterValue = (value?: string | null) =>
+  value ? stripDiacritics(value).trim().toLowerCase() : '';
 
 type CustomLocation = {
   label: string;
@@ -279,7 +281,49 @@ export default function DashboardPage() {
   const availableVehicleTypes = kpis?.meta.availableVehicleTypes ?? [];
   const availableManufacturers = kpis?.meta.availableManufacturers ?? [];
   const geoLocations = kpis?.geo.locations ?? [];
-  const inventoryList = useMemo(() => kpis?.inventory ?? [], [kpis?.inventory]);
+  const inventoryList = useMemo(() => {
+    const list = kpis?.inventory ?? [];
+    if (
+      !filters.country &&
+      !filters.region &&
+      !filters.city &&
+      !filters.vehicleType &&
+      !filters.manufacturer
+    ) {
+      return list;
+    }
+    const countryFilter = normalizeFilterValue(filters.country);
+    const regionFilter = normalizeFilterValue(filters.region);
+    const cityFilter = normalizeFilterValue(filters.city);
+    const vehicleTypeFilter = normalizeFilterValue(filters.vehicleType);
+    const manufacturerFilter = normalizeFilterValue(filters.manufacturer);
+
+    return list.filter((item) => {
+      if (countryFilter && normalizeFilterValue(item.land) !== countryFilter) {
+        return false;
+      }
+      if (regionFilter && normalizeFilterValue(item.region) !== regionFilter) {
+        return false;
+      }
+      if (cityFilter && normalizeFilterValue(item.stadt) !== cityFilter) {
+        return false;
+      }
+      if (vehicleTypeFilter && normalizeFilterValue(item.fahrzeugtyp) !== vehicleTypeFilter) {
+        return false;
+      }
+      if (manufacturerFilter && normalizeFilterValue(item.manufacturer) !== manufacturerFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [
+    kpis?.inventory,
+    filters.country,
+    filters.region,
+    filters.city,
+    filters.vehicleType,
+    filters.manufacturer,
+  ]);
   const inventoryListForSearch = useMemo(() => {
     if (!mapOwnerSelection || mapOwnerSelection.keys.length === 0) {
       return inventoryList;
