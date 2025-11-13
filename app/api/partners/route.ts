@@ -271,6 +271,17 @@ export async function PATCH(request: NextRequest) {
         region: nextRegion,
         country: nextCountry,
       });
+
+      if (!geocodeResult) {
+        const fallbackCoordinate = resolveCityCoordinates(nextCity, nextCountry);
+        if (fallbackCoordinate) {
+          geocodeResult = {
+            latitude: fallbackCoordinate.latitude,
+            longitude: fallbackCoordinate.longitude,
+            label: `${nextCity}, ${nextCountry}`,
+          };
+        }
+      }
     }
 
     const assignOwner = (candidates: string[], value: string) => {
