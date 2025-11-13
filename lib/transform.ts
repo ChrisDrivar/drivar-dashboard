@@ -741,10 +741,17 @@ export function buildKpis(
   const regionScopedInventory = normalisedRegion
     ? countryScopedInventory.filter(({ item }) => normaliseValue(item.region) === normalisedRegion)
     : countryScopedInventory;
+  const countryScopedOwners = normalisedCountry
+    ? owners.filter((owner) => normaliseValue(owner.land) === normalisedCountry)
+    : owners;
+  const regionCandidates =
+    countryScopedOwners.length > 0
+      ? countryScopedOwners.map((owner) => owner.region)
+      : countryScopedInventory.map(({ item }) => item.region);
 
   const meta = {
     availableCountries: uniqueValues(inventory.map((item) => item.land)),
-    availableRegions: uniqueValues(countryScopedInventory.map(({ item }) => item.region)),
+    availableRegions: uniqueValues(regionCandidates),
     availableCities: uniqueValues(regionScopedInventory.map(({ item }) => item.stadt)),
     availableVehicleTypes: uniqueValues(countryScopedInventory.map(({ item }) => item.fahrzeugtyp)),
     availableManufacturers: uniqueValues(countryScopedInventory.map(({ item }) => item.manufacturer)),
