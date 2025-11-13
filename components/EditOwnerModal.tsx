@@ -62,9 +62,10 @@ const EXPERIENCE_OPTIONS = ['0-1', ...Array.from({ length: 25 }, (_, index) => S
 const INTERNATIONAL_OPTIONS = ['ja', 'nein'];
 
 const deriveAddressFallback = (owner?: OwnerDetails | null) => {
-  const fallbackAddress = owner?.address?.trim();
+  const fallbackAddress = owner?.address?.trim() ?? '';
   const street = owner?.street?.trim();
   const postal = owner?.postalCode?.trim();
+  const city = owner?.city?.trim();
 
   if (street && postal) {
     return { street, postalCode: postal };
@@ -74,10 +75,38 @@ const deriveAddressFallback = (owner?: OwnerDetails | null) => {
     return { street: street ?? '', postalCode: postal ?? '' };
   }
 
-  const postalMatch = fallbackAddress.match(/(\d{4,5})(?:\s+|$)/);
-  const derivedPostal = postalMatch ? postalMatch[1] : postal ?? '';
-  const derivedStreet = street && street.length > 0 ? street : fallbackAddress;
-  return { street: derivedStreet, postalCode: derivedPostal };
+  const parts = fallbackAddress.split(',').map((part) => part.trim()).filter(Boolean);
+  let derivedStreet = street ?? '';
+  let derivedPostal = postal ?? '';
+
+  const postalRegex = /(\d{4,5})(?=[^\d]|$)/;
+  for (const candidate of [...parts, fallbackAddress]) {
+    if (derivedPostal) break;
+    const match = candidate.match(postalRegex);
+    if (match) {
+      derivedPostal = match[1];
+    }
+  }
+
+  if (!derivedStreet) {
+    derivedStreet = parts.length > 0 ? parts[0] : fallbackAddress;
+  }
+
+  if (derivedPostal) {
+    derivedStreet = derivedStreet.replace(derivedPostal, '').trim();
+  }
+
+  if (city) {
+    const normalizedCity = city.toLowerCase();
+    if (derivedStreet.toLowerCase().endsWith(normalizedCity)) {
+      derivedStreet = derivedStreet.slice(0, -normalizedCity.length).trim().replace(/[,-]+$/, '').trim();
+    }
+  }
+
+  return {
+    street: derivedStreet || street || fallbackAddress,
+    postalCode: derivedPostal || postal || '',
+  };
 };
 
 const createInitialForm = (owner?: OwnerDetails | null): FormState => {
